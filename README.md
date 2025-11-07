@@ -2,6 +2,7 @@
 
 
 ```sh
+npm install express helmet cors better-sqlite3
 npm start
 ```
 
