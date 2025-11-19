@@ -1,52 +1,69 @@
 # SpinHub 📀
 
+A modern vinyl record collection manager built with React, Express, and SQLite.
+
+## 🚀 Quick Start
 
 ```sh
+# Install dependencies
 npm install
-npm start
+cd client && npm install
+
+# Start development servers
+npm run dev
 ```
 
 ## 📁 Project Structure
 
 ```
 spinhub/
-├── server.js            # Express API server
-├── schema.sql           # Database structure
-├── seed.sql             # Sample data
-├── package.json         # Node dependencies
-├── vinyl_collection.db  # SQLite database (auto-generated)
-├── public/              # Frontend files
-│   ├── index.html       # Main HTML
-│   ├── styles.css       # Styling
-│   └── app.js           # Frontend logic
-└── README.md            # This file
-```
-
-New structure
-```
-spinhub/
-├── client/                  ← Vite + React SPA
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── ...
-│   ├── public/              ← only truly static files (favicon, robots.txt, etc.)
-│   ├── vite.config.js
-│   ├── index.html
-│   └── package.json
+├── client/                          # React + Vite frontend
+│   ├── components.json              # shadcn/ui configuration
+│   ├── eslint.config.js
+│   ├── index.html                   # Vite entry point
+│   ├── package.json                 # Frontend dependencies
+│   ├── postcss.config.js
+│   ├── public/                      # Static assets
+│   │   └── vite.svg
+│   ├── src/                         # React source code
+│   │   ├── App.jsx                  # Main React component
+│   │   ├── assets/                  # Imported assets
+│   │   ├── components/              # React components
+│   │   │   └── ui/                  # shadcn/ui components
+│   │   │       ├── button.jsx/tsx
+│   │   │       ├── calendar.tsx
+│   │   │       ├── card.jsx
+│   │   │       ├── dialog.jsx
+│   │   │       ├── input.jsx
+│   │   │       ├── popover.tsx
+│   │   │       ├── select.tsx
+│   │   │       ├── tabs.jsx
+│   │   │       ├── textarea.tsx
+│   │   │       ├── toast.tsx
+│   │   │       └── toaster.tsx
+│   │   ├── hooks/                   # Custom React hooks
+│   │   │   └── use-toast.ts
+│   │   ├── index.css                # Global styles (Tailwind)
+│   │   ├── lib/                     # Utility functions
+│   │   │   └── utils.js
+│   │   └── main.jsx                 # React entry point
+│   ├── tailwind.config.js           # Tailwind CSS config
+│   ├── tsconfig.json                # TypeScript config
+│   └── vite.config.js               # Vite configuration
 │
-├── server/                  ← All backend code
-│   ├── server.js            ← or index.js
-│   ├── schema.sql           # Database structure
-│   └── seed.sql             # Sample data
+├── server/                          # Express backend
+│   ├── schema.sql                   # SQLite database schema
+│   ├── seed.sql                     # Sample data
+│   └── server.js                    # Express API server
 │
-├── public/                  # Built production frontend (auto-generated)
-│   ├── index.html           # output from Vite build
-│   └── assets/
+├── public/                          # Built production frontend
+│   ├── assets/                      # Compiled CSS/JS
+│   ├── index.html                   # Production HTML
+│   └── vite.svg
 │
-├── package.json             # Root package (for scripts & shared deps)
+├── package.json                     # Root package (scripts & shared deps)
 ├── .gitignore
-└── README.md                # This file
+└── README.md                        # This file
 ```
 
 
