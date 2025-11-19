@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -23,6 +23,8 @@ function App() {
   const [stats, setStats] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [artists, setArtists] = useState([]);
@@ -63,6 +65,7 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         e.stopPropagation();
+        console.log('Ctrl+K pressed, opening search dialog');
         setSearchDialogOpen(true);
       }
     };
@@ -71,6 +74,41 @@ function App() {
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Debounced search effect
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setHasSearched(false);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const debounceTimer = setTimeout(async () => {
+      try {
+        console.log('Searching for:', searchQuery);
+        const res = await fetch(`${API_BASE}/search?query=${encodeURIComponent(searchQuery)}`);
+        console.log('Search response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`Search failed: ${res.status}`);
+        }
+        const results = await res.json();
+        console.log('Search results:', results);
+        setSearchResults(results);
+        setHasSearched(true);
+      } catch (error) {
+        console.error('Search failed:', error);
+        showToast('Search failed: ' + error.message, 'error');
+        setSearchResults([]);
+        setHasSearched(true);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
 
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode;
@@ -111,14 +149,28 @@ function App() {
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setHasSearched(false);
       return;
     }
     try {
+      setIsSearching(true);
+      console.log('Manual search for:', searchQuery);
       const res = await fetch(`${API_BASE}/search?query=${encodeURIComponent(searchQuery)}`);
+      console.log('Search response status:', res.status);
+      if (!res.ok) {
+        throw new Error(`Search failed: ${res.status}`);
+      }
       const results = await res.json();
+      console.log('Search results:', results);
       setSearchResults(results);
+      setHasSearched(true);
     } catch (error) {
       console.error('Search failed:', error);
+      showToast('Search failed: ' + error.message, 'error');
+      setSearchResults([]);
+      setHasSearched(true);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -141,6 +193,26 @@ function App() {
       }
     });
   }, [collection, sortBy]);
+
+  const sortedWishlist = useMemo(() => {
+    return [...wishlist].sort((a, b) => {
+      switch (sortBy) {
+        case 'artist':
+          return (a.ArtistName || '').localeCompare(b.ArtistName || '');
+        case 'album':
+          return (a.AlbumTitle || '').localeCompare(b.AlbumTitle || '');
+        case 'year':
+          return (a.ReleaseYear || 0) - (b.ReleaseYear || 0);
+        case 'priority':
+          const priorities = ['Low', 'Medium', 'High'];
+          return priorities.indexOf(a.Priority) - priorities.indexOf(b.Priority);
+        case 'price':
+          return (a.MaxPrice || 0) - (b.MaxPrice || 0);
+        default:
+          return 0;
+      }
+    });
+  }, [wishlist, sortBy]);
 
   const sortCollection = (newSortBy) => {
     setSortBy(newSortBy);
@@ -423,6 +495,18 @@ function App() {
   const renderWishlist = () => (
     <div>
       <div className="flex gap-3 mb-6">
+        <Select value={sortBy} onValueChange={sortCollection}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Sort by..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="artist">Sort by Artist</SelectItem>
+            <SelectItem value="album">Sort by Album</SelectItem>
+            <SelectItem value="year">Sort by Year</SelectItem>
+            <SelectItem value="priority">Sort by Priority</SelectItem>
+            <SelectItem value="price">Sort by Price</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="flex border rounded-md">
           <Button
             variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -444,7 +528,7 @@ function App() {
       </div>
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {wishlist.map(item => (
+          {sortedWishlist.map(item => (
             <Card key={item.WishlistID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('wishlist', item)}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle || 'N/A'}</CardTitle>
@@ -468,7 +552,7 @@ function App() {
         </div>
       ) : (
         <div className="space-y-2">
-          {wishlist.map(item => (
+          {sortedWishlist.map(item => (
             <div
               key={item.WishlistID}
               className="grok-card p-4 hover:bg-accent/50 cursor-pointer transition-colors"
@@ -674,7 +758,10 @@ function App() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSearchDialogOpen(true)}
+                onClick={() => {
+                  console.log('Search button clicked');
+                  setSearchDialogOpen(true);
+                }}
                 className="flex items-center gap-2 hover:scale-105 transition-transform"
               >
                 <Search className="h-4 w-4" />
@@ -879,8 +966,17 @@ function App() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={searchDialogOpen} onOpenChange={(open) => {
+        console.log('Search dialog open state changed to:', open);
+        setSearchDialogOpen(open);
+        if (!open) {
+          // Reset search state when dialog closes
+          setSearchQuery('');
+          setSearchResults([]);
+          setHasSearched(false);
+        }
+      }}>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Search Collection</DialogTitle>
           </DialogHeader>
@@ -895,28 +991,86 @@ function App() {
                 className="flex-1"
                 autoFocus
               />
-              <Button onClick={handleSearch}>
-                Search
+              <Button onClick={handleSearch} disabled={isSearching}>
+                {isSearching ? 'Searching...' : 'Search'}
               </Button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-96 overflow-y-auto">
-              {searchResults.map(item => (
-                <Card key={item.CollectionID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => { setSearchDialogOpen(false); openModal('collection', item); }}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Artist:</span>
-                      <span className="font-medium">{item.ArtistName}</span>
+            <div className="flex justify-end">
+              <div className="flex border rounded-md">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className="rounded-r-none"
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="rounded-l-none"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-96 overflow-y-auto" : "space-y-2 max-h-96 overflow-y-auto"}>
+              {isSearching ? (
+                <div className={viewMode === 'grid' ? "col-span-full text-center py-8" : "text-center py-8"}>
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Searching...</p>
+                </div>
+              ) : searchResults.length === 0 && hasSearched && searchQuery.trim() ? (
+                <div className={viewMode === 'grid' ? "col-span-full text-center py-8 text-muted-foreground" : "text-center py-8 text-muted-foreground"}>
+                  No results found for "{searchQuery}"
+                </div>
+              ) : searchResults.length > 0 ? (
+                viewMode === 'grid' ? (
+                  searchResults.map(item => (
+                    <Card key={item.CollectionID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => { setSearchDialogOpen(false); openModal('collection', item); }}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Artist:</span>
+                          <span className="font-medium">{item.ArtistName}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Catalog:</span>
+                          <span className="font-medium">{item.CatalogNumber}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  searchResults.map(item => (
+                    <div
+                      key={item.CollectionID}
+                      className="grok-card p-4 hover:bg-accent/50 cursor-pointer transition-colors"
+                      onClick={() => { setSearchDialogOpen(false); openModal('collection', item); }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-semibold text-primary truncate">{item.AlbumTitle}</h3>
+                            <span className="text-sm text-muted-foreground">by</span>
+                            <span className="text-sm font-medium truncate">{item.ArtistName}</span>
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                            <span>Catalog: {item.CatalogNumber || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Catalog:</span>
-                      <span className="font-medium">{item.CatalogNumber}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  ))
+                )
+              ) : hasSearched ? null : (
+                <div className={viewMode === 'grid' ? "col-span-full text-center py-8 text-muted-foreground" : "text-center py-8 text-muted-foreground"}>
+                  Start typing to search your collection...
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
