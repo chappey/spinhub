@@ -66,5 +66,6 @@ spinhub/
 └── README.md                        # This file
 ```
 
+## Discogs API
 
-
+https://www.discogs.com/developers/

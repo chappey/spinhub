@@ -11,7 +11,25 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
 import { Kbd } from '@/components/ui/kbd'
-import { Moon, Sun, Disc, Disc3, Search, Command, CalendarIcon, Plus, Grid3X3, List, Home, Library, Heart, BarChart3, Settings, Menu, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Moon, Sun, Disc, Disc3, Search, Command, CalendarIcon, Plus, Grid3X3, List, Home, Library, Heart, BarChart3, Settings, Menu, ChevronLeft, ChevronRight, Edit, Trash2, Move, Eye, Copy } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +52,9 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState('');
   const [modalData, setModalData] = useState(null);
+  const [modalMode, setModalMode] = useState('view'); // 'view' or 'edit'
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [alertDialogData, setAlertDialogData] = useState(null);
   const [purchaseDate, setPurchaseDate] = useState(null);
   const { toast } = useToast();
   const [selectedArtist, setSelectedArtist] = useState('');
@@ -521,6 +542,248 @@ function App() {
     setDiscogsSearchQuery('');
   };
 
+  // Context menu actions
+  const handleEditItem = (item, type) => {
+    setModalType(type);
+    setModalData(item);
+    setModalMode('edit');
+    setModalOpen(true);
+  };
+
+  const handleDeleteItem = (item, type) => {
+    setAlertDialogData({ item, type });
+    setAlertDialogOpen(true);
+  };
+
+  const confirmDeleteItem = async () => {
+    const { item, type } = alertDialogData;
+    setAlertDialogOpen(false);
+
+    try {
+      if (type === 'collection') {
+        await fetch(`${API_BASE}/collection/${item.CollectionID}`, { method: 'DELETE' });
+        showToast('Removed from collection');
+      } else if (type === 'wishlist') {
+        await fetch(`${API_BASE}/wishlist/${item.WishlistID}`, { method: 'DELETE' });
+        showToast('Removed from wishlist');
+      }
+      loadData();
+    } catch (error) {
+      showToast(`Failed to delete: ${error.message}`, 'error');
+    }
+  };
+
+  const handleMoveToCollection = async (item) => {
+    try {
+      // First check if we have enough info to add to collection
+      if (!item.ReleaseID && !item.AlbumID) {
+        showToast('Cannot add to collection: missing release information', 'error');
+        return;
+      }
+
+      // Open the add form with pre-filled data
+      setSelectedArtist(item.ArtistName || '');
+      setSelectedAlbum(item.AlbumID || '');
+      setAlbumFormat(item.Format || 'LP');
+      setCurrentPage('collection');
+      setShowAddForm(true);
+      showToast('Switched to add form - please fill in the details');
+    } catch (error) {
+      showToast(`Failed to prepare add form: ${error.message}`, 'error');
+    }
+  };
+
+  const handleViewDetails = (item, type) => {
+    setModalType(type);
+    setModalData(item);
+    setModalMode('view');
+    setModalOpen(true);
+  };
+
+  const renderModalContent = () => {
+    if (!modalData) return null;
+
+    if (modalType === 'wishlist') {
+      return (
+        <div className="space-y-4">
+          <h2>{modalData.AlbumTitle || 'Unknown Album'}</h2>
+          <h3>{modalData.ArtistName || 'Unknown Artist'}</h3>
+          <hr />
+          <p><strong>Priority:</strong> <span className={`priority-${modalData.Priority.toLowerCase()}`}>{modalData.Priority}</span></p>
+          <p><strong>Max Price:</strong> {modalData.MaxPrice ? '$' + parseFloat(modalData.MaxPrice).toFixed(2) : 'Not set'}</p>
+          {modalData.ReleaseYear && <p><strong>Year:</strong> {modalData.ReleaseYear}</p>}
+          {modalData.CatalogNumber && <p><strong>Catalog Number:</strong> {modalData.CatalogNumber}</p>}
+          {modalData.LabelName && <p><strong>Label:</strong> {modalData.LabelName}</p>}
+          {modalData.Notes && <p><strong>Notes:</strong> {modalData.Notes}</p>}
+        </div>
+      );
+    }
+
+    if (modalType === 'collection') {
+      if (modalMode === 'view') {
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium">Album</label>
+                <p className="text-lg">{modalData.AlbumTitle}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Artist</label>
+                <p className="text-lg">{modalData.ArtistName}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium">Catalog Number</label>
+                <p>{modalData.CatalogNumber || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Label</label>
+                <p>{modalData.LabelName || 'Unknown'}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium">Purchase Date</label>
+                <p>{modalData.PurchaseDate ? format(new Date(modalData.PurchaseDate), "PPP") : 'Not set'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Purchase Price</label>
+                <p>{modalData.PurchasePrice ? '$' + parseFloat(modalData.PurchasePrice).toFixed(2) : 'Not set'}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium">Condition</label>
+                <p>{modalData.Condition}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Sleeve Condition</label>
+                <p>{modalData.SleeveCondition}</p>
+              </div>
+            </div>
+            {modalData.Notes && (
+              <div>
+                <label className="block text-sm font-medium">Notes</label>
+                <p>{modalData.Notes}</p>
+              </div>
+            )}
+          </div>
+        );
+      } else if (modalMode === 'edit') {
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium">Album</label>
+                <p className="text-lg">{modalData.AlbumTitle}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Artist</label>
+                <p className="text-lg">{modalData.ArtistName}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium">Catalog Number</label>
+                <p>{modalData.CatalogNumber || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Label</label>
+                <p>{modalData.LabelName || 'Unknown'}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Purchase Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !purchaseDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {purchaseDate ? format(purchaseDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={purchaseDate}
+                      onSelect={setPurchaseDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Purchase Price</label>
+                <Input id="modalPurchasePrice" type="number" step="0.01" defaultValue={modalData.PurchasePrice} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Condition</label>
+                <Select value={modalCondition} onValueChange={setModalCondition}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Mint">Mint (M)</SelectItem>
+                    <SelectItem value="Near Mint">Near Mint (NM)</SelectItem>
+                    <SelectItem value="Very Good Plus">Very Good Plus (VG+)</SelectItem>
+                    <SelectItem value="Very Good">Very Good (VG)</SelectItem>
+                    <SelectItem value="Good Plus">Good Plus (G+)</SelectItem>
+                    <SelectItem value="Good">Good (G)</SelectItem>
+                    <SelectItem value="Fair">Fair (F)</SelectItem>
+                    <SelectItem value="Poor">Poor (P)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Sleeve Condition</label>
+                <Select value={modalSleeveCondition} onValueChange={setModalSleeveCondition}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Mint">Mint (M)</SelectItem>
+                    <SelectItem value="Near Mint">Near Mint (NM)</SelectItem>
+                    <SelectItem value="Very Good Plus">Very Good Plus (VG+)</SelectItem>
+                    <SelectItem value="Very Good">Very Good (VG)</SelectItem>
+                    <SelectItem value="Good Plus">Good Plus (G+)</SelectItem>
+                    <SelectItem value="Good">Good (G)</SelectItem>
+                    <SelectItem value="Fair">Fair (F)</SelectItem>
+                    <SelectItem value="Poor">Poor (P)</SelectItem>
+                    <SelectItem value="No Sleeve">No Sleeve</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Acquired From</label>
+              <Input id="modalAcquiredFrom" defaultValue={modalData.AcquiredFrom} placeholder="Acquired From" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Notes</label>
+              <Textarea id="modalNotes" defaultValue={modalData.Notes} placeholder="Notes" />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button onClick={closeModal} variant="outline">Cancel</Button>
+              <Button onClick={saveModal}>Save Changes</Button>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    return null;
+  };
+
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'collection', label: 'My Collection', icon: Library },
@@ -748,66 +1011,103 @@ function App() {
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedCollection.map(item => (
-            <Card key={item.CollectionID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('collection', item)}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center">
-                    <Disc className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Artist:</span>
-                  <span className="font-medium">{item.ArtistName}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Catalog:</span>
-                  <span className="font-medium">{item.CatalogNumber}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Condition:</span>
-                  <span className="font-medium">{item.Condition}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Label:</span>
-                  <span className="font-medium">{item.LabelName}</span>
-                </div>
-              </CardContent>
-            </Card>
+            <ContextMenu key={item.CollectionID}>
+              <ContextMenuTrigger>
+                <Card className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('collection', item)}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center">
+                        <Disc className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Artist:</span>
+                      <span className="font-medium">{item.ArtistName}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Catalog:</span>
+                      <span className="font-medium">{item.CatalogNumber}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Condition:</span>
+                      <span className="font-medium">{item.Condition}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Label:</span>
+                      <span className="font-medium">{item.LabelName}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => handleViewDetails(item, 'collection')}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  View Details
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleEditItem(item, 'collection')}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => handleDeleteItem(item, 'collection')} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </div>
       ) : (
         <div className="space-y-2">
           {sortedCollection.map(item => (
-            <div
-              key={item.CollectionID}
-              className="grok-card p-4 hover:bg-accent/50 cursor-pointer transition-colors"
-              onClick={() => openModal('collection', item)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center">
-                    <Disc className="w-6 h-6 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-primary truncate">{item.AlbumTitle}</h3>
-                      <span className="text-sm text-muted-foreground">by</span>
-                      <span className="text-sm font-medium truncate">{item.ArtistName}</span>
-                    </div>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                      <span>Catalog: {item.CatalogNumber || 'N/A'}</span>
-                      <span>Condition: {item.Condition}</span>
-                      <span>Label: {item.LabelName || 'Unknown'}</span>
+            <ContextMenu key={item.CollectionID}>
+              <ContextMenuTrigger>
+                <div
+                  className="grok-card p-4 hover:bg-accent/50 cursor-pointer transition-colors"
+                  onClick={() => openModal('collection', item)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                        <Disc className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-primary truncate">{item.AlbumTitle}</h3>
+                          <span className="text-sm text-muted-foreground">by</span>
+                          <span className="text-sm font-medium truncate">{item.ArtistName}</span>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                          <span>Catalog: {item.CatalogNumber || 'N/A'}</span>
+                          <span>Condition: {item.Condition}</span>
+                          <span>Label: {item.LabelName || 'Unknown'}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => handleViewDetails(item, 'collection')}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  View Details
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleEditItem(item, 'collection')}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => handleDeleteItem(item, 'collection')} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </div>
       )}
@@ -851,61 +1151,108 @@ function App() {
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedWishlist.map(item => (
-            <Card key={item.WishlistID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('wishlist', item)}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center">
-                    <Disc className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle || 'N/A'}</CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Artist:</span>
-                  <span className="font-medium">{item.ArtistName || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Priority:</span>
-                  <span className="font-medium">{item.Priority}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Max Price:</span>
-                  <span className="font-medium">${item.MaxPrice || 'N/A'}</span>
-                </div>
-              </CardContent>
-            </Card>
+            <ContextMenu key={item.WishlistID}>
+              <ContextMenuTrigger>
+                <Card className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('wishlist', item)}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center">
+                        <Disc className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle || 'N/A'}</CardTitle>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Artist:</span>
+                      <span className="font-medium">{item.ArtistName || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Priority:</span>
+                      <span className="font-medium">{item.Priority}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Max Price:</span>
+                      <span className="font-medium">${item.MaxPrice || 'N/A'}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => handleViewDetails(item, 'wishlist')}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  View Details
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleEditItem(item, 'wishlist')}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => handleMoveToCollection(item)}>
+                  <Move className="mr-2 h-4 w-4" />
+                  Move to Collection
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => handleDeleteItem(item, 'wishlist')} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </div>
       ) : (
         <div className="space-y-2">
           {sortedWishlist.map(item => (
-            <div
-              key={item.WishlistID}
-              className="grok-card p-4 hover:bg-accent/50 cursor-pointer transition-colors"
-              onClick={() => openModal('wishlist', item)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center">
-                    <Disc className="w-6 h-6 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-primary truncate">{item.AlbumTitle || 'Unknown Album'}</h3>
-                      <span className="text-sm text-muted-foreground">by</span>
-                      <span className="text-sm font-medium truncate">{item.ArtistName || 'Unknown Artist'}</span>
-                    </div>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                      <span>Priority: {item.Priority}</span>
-                      <span>Max Price: ${item.MaxPrice || 'N/A'}</span>
+            <ContextMenu key={item.WishlistID}>
+              <ContextMenuTrigger>
+                <div
+                  className="grok-card p-4 hover:bg-accent/50 cursor-pointer transition-colors"
+                  onClick={() => openModal('wishlist', item)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                        <Disc className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-primary truncate">{item.AlbumTitle || 'Unknown Album'}</h3>
+                          <span className="text-sm text-muted-foreground">by</span>
+                          <span className="text-sm font-medium truncate">{item.ArtistName || 'Unknown Artist'}</span>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                          <span>Priority: {item.Priority}</span>
+                          <span>Max Price: ${item.MaxPrice || 'N/A'}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => handleViewDetails(item, 'wishlist')}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  View Details
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleEditItem(item, 'wishlist')}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => handleMoveToCollection(item)}>
+                  <Move className="mr-2 h-4 w-4" />
+                  Move to Collection
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => handleDeleteItem(item, 'wishlist')} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </div>
       )}
@@ -1281,133 +1628,18 @@ function App() {
         </div>
       </div>
 
+      <>
       <Dialog open={modalOpen} onOpenChange={closeModal}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{modalType === 'collection' ? 'Edit Collection Item' : 'Wishlist Item'}</DialogTitle>
+          <DialogTitle>
+            {modalMode === 'view' 
+              ? `${modalType === 'collection' ? 'Collection' : 'Wishlist'} Item Details`
+              : modalType === 'collection' ? 'Edit Collection Item' : 'Edit Wishlist Item'
+            }
+          </DialogTitle>
           </DialogHeader>
-          {modalType === 'collection' && modalData && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium">Album</label>
-                  <p className="text-lg">{modalData.AlbumTitle}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Artist</label>
-                  <p className="text-lg">{modalData.ArtistName}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium">Catalog Number</label>
-                  <p>{modalData.CatalogNumber || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Label</label>
-                  <p>{modalData.LabelName || 'Unknown'}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Purchase Date</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !purchaseDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {purchaseDate ? format(purchaseDate, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={purchaseDate}
-                        onSelect={setPurchaseDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Purchase Price</label>
-                  <Input id="modalPurchasePrice" type="number" step="0.01" defaultValue={modalData.PurchasePrice} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Condition</label>
-                  <Select value={modalCondition} onValueChange={setModalCondition}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Mint">Mint (M)</SelectItem>
-                      <SelectItem value="Near Mint">Near Mint (NM)</SelectItem>
-                      <SelectItem value="Very Good Plus">Very Good Plus (VG+)</SelectItem>
-                      <SelectItem value="Very Good">Very Good (VG)</SelectItem>
-                      <SelectItem value="Good Plus">Good Plus (G+)</SelectItem>
-                      <SelectItem value="Good">Good (G)</SelectItem>
-                      <SelectItem value="Fair">Fair (F)</SelectItem>
-                      <SelectItem value="Poor">Poor (P)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Sleeve Condition</label>
-                  <Select value={modalSleeveCondition} onValueChange={setModalSleeveCondition}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Mint">Mint (M)</SelectItem>
-                      <SelectItem value="Near Mint">Near Mint (NM)</SelectItem>
-                      <SelectItem value="Very Good Plus">Very Good Plus (VG+)</SelectItem>
-                      <SelectItem value="Very Good">Very Good (VG)</SelectItem>
-                      <SelectItem value="Good Plus">Good Plus (G+)</SelectItem>
-                      <SelectItem value="Good">Good (G)</SelectItem>
-                      <SelectItem value="Fair">Fair (F)</SelectItem>
-                      <SelectItem value="Poor">Poor (P)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Storage Location</label>
-                <Input id="modalStorageLocation" defaultValue={modalData.StorageLocation} placeholder="Storage Location" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Acquired From</label>
-                <Input id="modalAcquiredFrom" defaultValue={modalData.AcquiredFrom} placeholder="Acquired From" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Notes</label>
-                <Textarea id="modalNotes" defaultValue={modalData.Notes} placeholder="Notes" />
-              </div>
-              <div className="flex gap-3 justify-end">
-                <Button onClick={closeModal} variant="outline">Cancel</Button>
-                <Button onClick={saveModal}>Save Changes</Button>
-              </div>
-            </div>
-          )}
-          {modalType === 'wishlist' && modalData && (
-            <div className="space-y-4">
-              <h2>{modalData.AlbumTitle || 'Unknown Album'}</h2>
-              <h3>{modalData.ArtistName || 'Unknown Artist'}</h3>
-              <hr />
-              <p><strong>Priority:</strong> <span className={`priority-${modalData.Priority.toLowerCase()}`}>{modalData.Priority}</span></p>
-              <p><strong>Max Price:</strong> {modalData.MaxPrice ? '$' + parseFloat(modalData.MaxPrice).toFixed(2) : 'Not set'}</p>
-              {modalData.ReleaseYear && <p><strong>Year:</strong> {modalData.ReleaseYear}</p>}
-              {modalData.CatalogNumber && <p><strong>Catalog Number:</strong> {modalData.CatalogNumber}</p>}
-              {modalData.LabelName && <p><strong>Label:</strong> {modalData.LabelName}</p>}
-              {modalData.Notes && <p><strong>Notes:</strong> {modalData.Notes}</p>}
-            </div>
-          )}
+          {renderModalContent()}
         </DialogContent>
       </Dialog>
 
@@ -1520,6 +1752,24 @@ function App() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={alertDialogOpen} onOpenChange={setAlertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete "{alertDialogData?.item?.AlbumTitle}" from your {alertDialogData?.type}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </>
 
       <Toaster />
     </div>
