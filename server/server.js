@@ -3,8 +3,12 @@ const express = require('express');
 const Database = require('better-sqlite3');
 const cors = require('cors');
 const helmet = require('helmet');
+const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+
+// Load environment variables
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -601,6 +605,73 @@ app.get('/api/stats', (req, res) => {
 });
 
 // ============================================================
+// DISCOGS API ENDPOINTS
+// ============================================================
+
+// Search Discogs for releases
+app.get('/api/discogs/search', async (req, res) => {
+  try {
+    const { q, type = 'release' } = req.query;
+    
+    if (!q) {
+      return res.status(400).json({ error: 'Search query required' });
+    }
+
+    const response = await axios.get('https://api.discogs.com/database/search', {
+      params: {
+        q,
+        type,
+        per_page: 10,
+        key: process.env.DISCOGS_KEY,
+        secret: process.env.DISCOGS_SECRET
+      },
+      headers: {
+        'User-Agent': process.env.DISCOGS_USER_AGENT || 'SpinHub/1.0 +https://github.com/chappey/spinhub'
+      },
+      timeout: 5000 // 5 second timeout
+    });
+
+    // Transform the response to include only relevant fields
+    const results = response.data.results.map(result => ({
+      id: result.id,
+      title: result.title,
+      year: result.year,
+      genre: result.genre?.[0] || '',
+      style: result.style?.[0] || '',
+      country: result.country,
+      format: result.format,
+      label: result.label?.[0] || '',
+      catno: result.catno,
+      thumb: result.thumb,
+      cover_image: result.cover_image,
+      // Extract artist from title if not provided separately
+      artist: result.title.split(' - ')[0] || ''
+    }));
+
+    res.json({
+      query: q,
+      results,
+      pagination: response.data.pagination
+    });
+
+  } catch (error) {
+    console.error('Discogs API error:', error.message);
+    
+    if (error.response) {
+      // Discogs API returned an error
+      if (error.response.status === 429) {
+        return res.status(429).json({ error: 'Rate limit exceeded. Please try again later.' });
+      }
+      return res.status(error.response.status).json({ error: 'Discogs API error' });
+    } else if (error.code === 'ECONNABORTED') {
+      return res.status(408).json({ error: 'Request timeout. Please try again.' });
+    } else {
+      return res.status(500).json({ error: 'Failed to search Discogs' });
+    }
+  }
+});
+
+// ============================================================
 // SERVER STARTUP
 // ============================================================
 
@@ -625,10 +696,12 @@ app.listen(PORT, () => {
   console.log(`  GET    /api/collection`);
   console.log(`  GET    /api/wishlist`);
   console.log(`  GET    /api/search?query=...`);
+  console.log(`  GET    /api/discogs/search?q=...`);
   console.log(`  GET    /api/stats`);
 });
 
 // Graceful shutdown
+/*
 process.on('SIGINT', () => {
   db.close();
   console.log('\n👋 Database closed. Server shutting down...');
@@ -640,3 +713,4 @@ process.on('SIGTERM', () => {
   console.log('\n👋 Database closed. Server shutting down...');
   process.exit(0);
 });
+*/

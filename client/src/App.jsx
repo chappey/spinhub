@@ -52,6 +52,10 @@ function App() {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [discogsSearchQuery, setDiscogsSearchQuery] = useState('');
+  const [discogsResults, setDiscogsResults] = useState([]);
+  const [discogsLoading, setDiscogsLoading] = useState(false);
+  const [discogsError, setDiscogsError] = useState('');
 
   useEffect(() => {
     loadData();
@@ -111,6 +115,21 @@ function App() {
 
     return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
+
+  // Debounced Discogs search
+  useEffect(() => {
+    if (!discogsSearchQuery.trim()) {
+      setDiscogsResults([]);
+      setDiscogsError('');
+      return;
+    }
+
+    const debounceTimer = setTimeout(() => {
+      searchDiscogs(discogsSearchQuery);
+    }, 500); // 500ms debounce for Discogs
+
+    return () => clearTimeout(debounceTimer);
+  }, [discogsSearchQuery]);
 
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode;
@@ -401,6 +420,105 @@ function App() {
     } catch (error) {
       showToast('Failed to add to collection', 'error');
     }
+  };
+
+  const searchDiscogs = async (query) => {
+    if (!query.trim()) {
+      setDiscogsResults([]);
+      return;
+    }
+
+    setDiscogsLoading(true);
+    setDiscogsError('');
+
+    try {
+      const response = await fetch(`${API_BASE}/discogs/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Search failed');
+      }
+
+      setDiscogsResults(data.results || []);
+    } catch (error) {
+      setDiscogsError(error.message);
+      setDiscogsResults([]);
+    } finally {
+      setDiscogsLoading(false);
+    }
+  };
+
+  const selectDiscogsResult = (result) => {
+    // Open both forms first
+    setNewArtistForm(true);
+    setNewAlbumForm(true);
+    
+    // Use a longer timeout to ensure forms are fully rendered
+    setTimeout(() => {
+      // Extract artist name
+      const artistName = result.artist || result.title.split(' - ')[0] || '';
+      
+      // Check if artist already exists
+      const existingArtist = artists.find(artist => 
+        artist.Name.toLowerCase() === artistName.toLowerCase()
+      );
+      
+      if (existingArtist) {
+        // Artist exists, set selectedArtist and close artist form
+        setSelectedArtist(existingArtist.ArtistID);
+        setNewArtistForm(false);
+        showToast(`Found existing artist: ${artistName}`);
+      } else {
+        // Fill artist form for new artist
+        const artistInput = document.getElementById('artistName');
+        if (artistInput) {
+          artistInput.value = artistName;
+        }
+      }
+
+      // Fill album form
+      // Album title - try to extract from title, fallback to full title
+      let albumTitle = result.title;
+      if (artistName && result.title.includes(' - ')) {
+        albumTitle = result.title.split(' - ').slice(1).join(' - ');
+      } else if (artistName && result.title.includes('-')) {
+        albumTitle = result.title.split('-').slice(1).join('-').trim();
+      }
+      
+      const albumTitleInput = document.getElementById('albumTitle');
+      const albumGenreInput = document.getElementById('albumGenre');
+      const albumYearInput = document.getElementById('albumYear');
+      
+      if (albumTitleInput) albumTitleInput.value = albumTitle;
+      if (albumGenreInput) albumGenreInput.value = result.genre || '';
+      if (albumYearInput) albumYearInput.value = result.year || '';
+
+      // Set format based on Discogs format
+      if (result.format && result.format.some(f => f.includes('LP'))) {
+        setAlbumFormat('LP');
+      } else if (result.format && result.format.some(f => f.includes('EP'))) {
+        setAlbumFormat('EP');
+      } else if (result.format && result.format.some(f => f.includes('Single'))) {
+        setAlbumFormat('Single');
+      }
+
+      // Autofill release details
+      const catalogInput = document.getElementById('catalogNumber');
+      const countryInput = document.getElementById('countryOfRelease');
+      const releaseYearInput = document.getElementById('releaseYear');
+      const formatVariantInput = document.getElementById('formatVariant');
+      
+      if (catalogInput) catalogInput.value = result.catno || '';
+      if (countryInput) countryInput.value = result.country || '';
+      if (releaseYearInput) releaseYearInput.value = result.year || '';
+      if (formatVariantInput) formatVariantInput.value = result.format ? result.format.join(', ') : '';
+      
+      showToast('Fields autofilled from Discogs. You can edit them as needed.');
+    }, 500); // Increased timeout to 500ms
+
+    // Clear search results
+    setDiscogsResults([]);
+    setDiscogsSearchQuery('');
   };
 
   const sidebarItems = [
@@ -765,6 +883,63 @@ function App() {
     <div className="max-w-2xl mx-auto space-y-6">
       
       <div className="grok-card p-6 space-y-4">
+        <h3 className="text-lg font-semibold">🔍 Search Discogs</h3>
+        <p className="text-sm text-muted-foreground">Search for albums on Discogs to autofill artist and album information.</p>
+        
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <Input
+              placeholder="Search Discogs for album (e.g., 'The Beatles Abbey Road')"
+              value={discogsSearchQuery}
+              onChange={(e) => setDiscogsSearchQuery(e.target.value)}
+              className="flex-1"
+            />
+            <Button 
+              onClick={() => searchDiscogs(discogsSearchQuery)} 
+              disabled={discogsLoading}
+              variant="outline"
+            >
+              {discogsLoading ? 'Searching...' : 'Search'}
+            </Button>
+          </div>
+          
+          {discogsError && (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              {discogsError}
+            </div>
+          )}
+          
+          {discogsResults.length > 0 && (
+            <div className="border rounded-lg max-h-60 overflow-y-auto">
+              {discogsResults.map((result) => (
+                <div
+                  key={result.id}
+                  className="flex items-center gap-3 p-3 hover:bg-accent cursor-pointer border-b last:border-b-0"
+                  onClick={() => selectDiscogsResult(result)}
+                >
+                  {result.thumb && (
+                    <img 
+                      src={result.thumb} 
+                      alt={result.title} 
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{result.title}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {result.year && `${result.year} • `}
+                      {result.label && `${result.label} • `}
+                      {result.country}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grok-card p-6 space-y-4">
         <h3 className="text-lg font-semibold">1. Select or Create Artist</h3>
         <div className="flex gap-3">
           <Select value={selectedArtist} onValueChange={handleArtistChange}>
@@ -795,10 +970,11 @@ function App() {
 
       <div className="grok-card p-6 space-y-4">
         <h3 className="text-lg font-semibold">2. Select or Create Album</h3>
+        
         <div className="flex gap-3">
           <Select value={selectedAlbum} onValueChange={setSelectedAlbum}>
             <SelectTrigger className="flex-1">
-              <SelectValue placeholder="-- Select Album --" />
+              <SelectValue placeholder="-- Select Existing Album --" />
             </SelectTrigger>
             <SelectContent>
               {albums.map(album => (
