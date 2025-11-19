@@ -568,7 +568,10 @@ function App() {
                   key={item.id}
                   variant={currentPage === item.id ? "secondary" : "ghost"}
                   className="w-full justify-start"
-                  onClick={() => setCurrentPage(item.id)}
+                  onClick={() => {
+                    setCurrentPage(item.id);
+                    setShowAddForm(false);
+                  }}
                 >
                   <Icon className="mr-2 h-4 w-4" />
                   {item.label}
@@ -652,6 +655,9 @@ function App() {
             <div className="space-y-4">
               {collection.slice(0, 5).map((item) => (
                 <div key={item.CollectionID} className="flex items-center">
+                  <div className="flex-shrink-0 w-10 h-10 bg-muted rounded-md flex items-center justify-center">
+                    <Disc className="w-5 h-5 text-muted-foreground" />
+                  </div>
                   <div className="ml-4 space-y-1">
                     <p className="text-sm font-medium leading-none">
                       {item.AlbumTitle}
@@ -691,7 +697,10 @@ function App() {
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => setCurrentPage('collection')}
+              onClick={() => {
+                setCurrentPage('collection');
+                setShowAddForm(false);
+              }}
             >
               <Library className="mr-2 h-4 w-4" />
               Browse Collection
@@ -741,7 +750,14 @@ function App() {
           {sortedCollection.map(item => (
             <Card key={item.CollectionID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('collection', item)}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center">
+                    <Disc className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -773,16 +789,21 @@ function App() {
               onClick={() => openModal('collection', item)}
             >
               <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-primary truncate">{item.AlbumTitle}</h3>
-                    <span className="text-sm text-muted-foreground">by</span>
-                    <span className="text-sm font-medium truncate">{item.ArtistName}</span>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                    <Disc className="w-6 h-6 text-muted-foreground" />
                   </div>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                    <span>Catalog: {item.CatalogNumber || 'N/A'}</span>
-                    <span>Condition: {item.Condition}</span>
-                    <span>Label: {item.LabelName || 'Unknown'}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-semibold text-primary truncate">{item.AlbumTitle}</h3>
+                      <span className="text-sm text-muted-foreground">by</span>
+                      <span className="text-sm font-medium truncate">{item.ArtistName}</span>
+                    </div>
+                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                      <span>Catalog: {item.CatalogNumber || 'N/A'}</span>
+                      <span>Condition: {item.Condition}</span>
+                      <span>Label: {item.LabelName || 'Unknown'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -832,7 +853,14 @@ function App() {
           {sortedWishlist.map(item => (
             <Card key={item.WishlistID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('wishlist', item)}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle || 'N/A'}</CardTitle>
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center">
+                    <Disc className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle || 'N/A'}</CardTitle>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -860,15 +888,20 @@ function App() {
               onClick={() => openModal('wishlist', item)}
             >
               <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-primary truncate">{item.AlbumTitle || 'Unknown Album'}</h3>
-                    <span className="text-sm text-muted-foreground">by</span>
-                    <span className="text-sm font-medium truncate">{item.ArtistName || 'Unknown Artist'}</span>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                    <Disc className="w-6 h-6 text-muted-foreground" />
                   </div>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                    <span>Priority: {item.Priority}</span>
-                    <span>Max Price: ${item.MaxPrice || 'N/A'}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-semibold text-primary truncate">{item.AlbumTitle || 'Unknown Album'}</h3>
+                      <span className="text-sm text-muted-foreground">by</span>
+                      <span className="text-sm font-medium truncate">{item.ArtistName || 'Unknown Artist'}</span>
+                    </div>
+                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                      <span>Priority: {item.Priority}</span>
+                      <span>Max Price: ${item.MaxPrice || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1231,7 +1264,10 @@ function App() {
                 key={item.id}
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => {
+                  setCurrentPage(item.id);
+                  setShowAddForm(false);
+                }}
                 className={cn(
                   "flex flex-col items-center gap-1 h-auto py-2 px-3",
                   currentPage === item.id && "text-primary"
