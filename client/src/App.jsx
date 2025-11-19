@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
 import { Kbd } from '@/components/ui/kbd'
-import { Moon, Sun, Disc, Disc3, Search, Command, CalendarIcon, Plus, Grid3X3, List } from 'lucide-react'
+import { Moon, Sun, Disc, Disc3, Search, Command, CalendarIcon, Plus, Grid3X3, List, Home, Library, Heart, BarChart3, Settings, Menu, ChevronLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -50,6 +50,8 @@ function App() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addFormPurchaseDate, setAddFormPurchaseDate] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -401,6 +403,187 @@ function App() {
     }
   };
 
+  const sidebarItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'collection', label: 'My Collection', icon: Library },
+    { id: 'wishlist', label: 'Wishlist', icon: Heart },
+    { id: 'stats', label: 'Statistics', icon: BarChart3 },
+  ];
+
+  const renderSidebar = () => (
+    <div className="pb-12 min-h-screen">
+      <div className="space-y-4 py-4">
+        <div className="px-3 py-2">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 flex items-center justify-center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="sidebarLogoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="1" />
+                      <stop offset="100%" stopColor="#06b6d4" stopOpacity="1" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="12" cy="12" r="10" stroke="url(#sidebarLogoGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M6 12c0-1.7.7-3.2 1.8-4.2" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="12" r="2" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M18 12c0 1.7-.7 3.2-1.8 4.2" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">SpinHub</h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarCollapsed(true)}
+              className="h-8 w-8 p-0 hover:bg-accent"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="space-y-1">
+            {sidebarItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Button
+                  key={item.id}
+                  variant={currentPage === item.id ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setCurrentPage(item.id)}
+                >
+                  <Icon className="mr-2 h-4 w-4" />
+                  {item.label}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderDashboard = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <p className="text-muted-foreground">
+          Welcome back! Here's an overview of your vinyl collection.
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <Library className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalRecords}</div>
+            <p className="text-xs text-muted-foreground">
+              In your collection
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${stats.totalValue}</div>
+            <p className="text-xs text-muted-foreground">
+              Collection worth
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Artists</CardTitle>
+            <Disc className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalArtists}</div>
+            <p className="text-xs text-muted-foreground">
+              Unique artists
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Wishlist</CardTitle>
+            <Heart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.wishlistItems}</div>
+            <p className="text-xs text-muted-foreground">
+              Items to acquire
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Activity / Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <CardTitle>Recent Additions</CardTitle>
+          </CardHeader>
+          <CardContent className="pl-2">
+            <div className="space-y-4">
+              {collection.slice(0, 5).map((item) => (
+                <div key={item.CollectionID} className="flex items-center">
+                  <div className="ml-4 space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {item.AlbumTitle}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.ArtistName}
+                    </p>
+                  </div>
+                  <div className="ml-auto font-medium">
+                    ${item.PurchasePrice}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-3">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              className="w-full justify-start"
+              onClick={() => setShowAddForm(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add New Record
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setSearchDialogOpen(true)}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Search Collection
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setCurrentPage('collection')}
+            >
+              <Library className="mr-2 h-4 w-4" />
+              Browse Collection
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
   const renderCollection = () => (
     <div>
       <div className="flex gap-3 mb-6">
@@ -743,98 +926,148 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full grok-gradient flex items-center justify-center">
-                <Disc3 className="h-8 w-8 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">
-                SpinHub
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  console.log('Search button clicked');
-                  setSearchDialogOpen(true);
-                }}
-                className="flex items-center gap-2 hover:scale-105 transition-transform"
-              >
-                <Search className="h-4 w-4" />
-                <span className="hidden sm:inline">Search</span>
-                <Kbd className="hidden sm:inline-flex">
-                  <Command className="h-3 w-3" />
-                  <span>K</span>
-                </Kbd>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-2 hover:scale-105 transition-transform"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={toggleDarkMode} className="hover:scale-105 transition-transform">
-                {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-          <div className="flex justify-center gap-4 mt-4 flex-wrap">
-            <div className="grok-card px-4 py-3 rounded-lg text-center min-w-[100px]">
-              <div className="text-xl font-bold text-primary">{stats.totalRecords}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">Records</div>
-            </div>
-            <div className="grok-card px-4 py-3 rounded-lg text-center min-w-[100px]">
-              <div className="text-xl font-bold text-primary">{stats.totalArtists}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">Artists</div>
-            </div>
-            <div className="grok-card px-4 py-3 rounded-lg text-center min-w-[100px]">
-              <div className="text-xl font-bold text-primary">${stats.totalValue}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">Value</div>
-            </div>
-            <div className="grok-card px-4 py-3 rounded-lg text-center min-w-[100px]">
-              <div className="text-xl font-bold text-primary">{stats.wishlistItems}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">Wishlist</div>
-            </div>
-          </div>
+      <div className={`grid transition-all duration-300 ${sidebarCollapsed ? 'lg:grid-cols-1' : 'lg:grid-cols-5'}`}>
+        {/* Sidebar */}
+        <div className={`hidden lg:block border-r border-border/50 bg-card/30 transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:w-0 lg:opacity-0 lg:overflow-hidden' : 'lg:col-span-1'
+        }`}>
+          {!sidebarCollapsed && renderSidebar()}
         </div>
-      </header>
 
-      <main className="container mx-auto p-4">
-        {showAddForm ? (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowAddForm(false)}
-                className="flex items-center gap-2"
-              >
-                ← Back to Collection
-              </Button>
-              <h2 className="text-2xl font-bold">Add New Vinyl</h2>
-            </div>
-            {renderAdd()}
+        {/* Collapsed Sidebar Toggle */}
+        {sidebarCollapsed && (
+          <div className="hidden lg:block fixed left-0 top-20 z-40">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSidebarCollapsed(false)}
+              className="ml-2 rounded-r-md rounded-l-none shadow-lg hover:scale-105 transition-transform"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-        ) : (
-          <Tabs defaultValue="collection" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 grok-card p-1">
-              <TabsTrigger value="collection" className="data-[state=active]:grok-gradient data-[state=active]:text-white">My Collection</TabsTrigger>
-              <TabsTrigger value="wishlist" className="data-[state=active]:grok-gradient data-[state=active]:text-white">Wishlist</TabsTrigger>
-            </TabsList>
-            <TabsContent value="collection" className="mt-6">
-              {renderCollection()}
-            </TabsContent>
-            <TabsContent value="wishlist" className="mt-6">
-              {renderWishlist()}
-            </TabsContent>
-          </Tabs>
         )}
-      </main>
+
+        {/* Main Content */}
+        <div className={`col-span-1 transition-all duration-300 ${sidebarCollapsed ? 'lg:col-span-1' : 'lg:col-span-4'}`}>
+          <header className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-50">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center lg:hidden">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <linearGradient id="headerLogoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity="1" />
+                          <stop offset="100%" stopColor="#06b6d4" stopOpacity="1" />
+                        </linearGradient>
+                      </defs>
+                      <circle cx="12" cy="12" r="10" stroke="url(#headerLogoGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M6 12c0-1.7.7-3.2 1.8-4.2" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="12" cy="12" r="2" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M18 12c0 1.7-.7 3.2-1.8 4.2" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">
+                    {currentPage === 'dashboard' ? 'Dashboard' :
+                     currentPage === 'collection' ? 'My Collection' :
+                     currentPage === 'wishlist' ? 'Wishlist' :
+                     'Statistics'}
+                  </h1>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      console.log('Search button clicked');
+                      setSearchDialogOpen(true);
+                    }}
+                    className="flex items-center gap-2 hover:scale-105 transition-transform"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span className="hidden sm:inline">Search</span>
+                    <Kbd className="hidden sm:inline-flex">
+                      <Command className="h-3 w-3" />
+                      <span>K</span>
+                    </Kbd>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddForm(true)}
+                    className="flex items-center gap-2 hover:scale-105 transition-transform"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={toggleDarkMode} className="hover:scale-105 transition-transform">
+                    {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Page Content */}
+          <main className="container mx-auto p-6">
+            {showAddForm ? (
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddForm(false)}
+                    className="flex items-center gap-2"
+                  >
+                    ← Back
+                  </Button>
+                  <h2 className="text-2xl font-bold">Add New Vinyl</h2>
+                </div>
+                {renderAdd()}
+              </div>
+            ) : currentPage === 'dashboard' ? (
+              renderDashboard()
+            ) : currentPage === 'collection' ? (
+              renderCollection()
+            ) : currentPage === 'wishlist' ? (
+              renderWishlist()
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-3xl font-bold tracking-tight">Statistics</h2>
+                  <p className="text-muted-foreground">
+                    Detailed analytics coming soon...
+                  </p>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+
+      {/* Mobile Navigation */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border/50">
+        <div className="flex justify-around py-2">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.id}
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentPage(item.id)}
+                className={cn(
+                  "flex flex-col items-center gap-1 h-auto py-2 px-3",
+                  currentPage === item.id && "text-primary"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="text-xs">{item.label}</span>
+              </Button>
+            );
+          })}
+        </div>
+      </div>
 
       <Dialog open={modalOpen} onOpenChange={closeModal}>
         <DialogContent className="max-w-2xl">
