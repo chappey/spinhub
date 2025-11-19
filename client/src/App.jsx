@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
 import { Kbd } from '@/components/ui/kbd'
-import { Moon, Sun, Disc, Search, Command, CalendarIcon, Plus, Grid3X3, List } from 'lucide-react'
+import { Moon, Sun, Disc, Disc3, Search, Command, CalendarIcon, Plus, Grid3X3, List } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -748,7 +748,7 @@ function App() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full grok-gradient flex items-center justify-center">
-                <Disc className="h-4 w-4 text-white" />
+                <Disc3 className="h-8 w-8 text-white" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">
                 SpinHub
