@@ -75,4 +75,48 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
+
+  .priority-high {
+    color: #ef4444;
+    font-weight: bold;
+  }
+
+  .priority-medium {
+    color: #f59e0b;
+    font-weight: bold;
+  }
+
+  .priority-low {
+    color: #10b981;
+    font-weight: bold;
+  }
+
+  /* Dark mode date input styling */
+  .dark input[type="date"] {
+    background-color: hsl(var(--input));
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border));
+  }
+
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+
+  .dark input[type="date"]::-webkit-datetime-edit {
+    color: hsl(var(--foreground));
+  }
+
+  .dark input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    color: hsl(var(--foreground));
+  }
+
+  .dark input[type="date"]::-webkit-datetime-edit-text {
+    color: hsl(var(--foreground));
+  }
+
+  .dark input[type="date"]::-webkit-datetime-edit-month-field,
+  .dark input[type="date"]::-webkit-datetime-edit-day-field,
+  .dark input[type="date"]::-webkit-datetime-edit-year-field {
+    color: hsl(var(--foreground));
+  }
 }

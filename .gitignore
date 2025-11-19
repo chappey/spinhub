@@ -1,6 +1,9 @@
+# Project specific ignores
+vinyl_collection.db
+
+
+
 # From: https://github.com/github/gitignore/blob/main/Node.gitignore
-
-
 # Logs
 logs
 *.log
@@ -142,3 +145,4 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+vinyl_collection.db
