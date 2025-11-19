@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
 import { Kbd } from '@/components/ui/kbd'
-import { Moon, Sun, Disc, Search, Command, CalendarIcon } from 'lucide-react'
+import { Moon, Sun, Disc, Search, Command, CalendarIcon, Plus } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -45,6 +45,8 @@ function App() {
   const [newArtistForm, setNewArtistForm] = useState(false);
   const [newAlbumForm, setNewAlbumForm] = useState(false);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addFormPurchaseDate, setAddFormPurchaseDate] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -60,6 +62,10 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setSearchDialogOpen(true);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        setShowAddForm(true);
       }
     };
 
@@ -82,18 +88,20 @@ function App() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [collectionRes, wishlistRes, statsRes, artistsRes, labelsRes] = await Promise.all([
+      const [collectionRes, wishlistRes, statsRes, artistsRes, labelsRes, albumsRes] = await Promise.all([
         fetch(`${API_BASE}/collection`),
         fetch(`${API_BASE}/wishlist`),
         fetch(`${API_BASE}/stats`),
         fetch(`${API_BASE}/artists`),
-        fetch(`${API_BASE}/labels`)
+        fetch(`${API_BASE}/labels`),
+        fetch(`${API_BASE}/albums`)
       ]);
       setCollection(await collectionRes.json());
       setWishlist(await wishlistRes.json());
       setStats(await statsRes.json());
       setArtists(await artistsRes.json());
       setLabels(await labelsRes.json());
+      setAlbums(await albumsRes.json());
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -290,7 +298,7 @@ function App() {
       // Add to collection
       const collectionData = {
         ReleaseID: release.ReleaseID,
-        PurchaseDate: document.getElementById('purchaseDate').value || null,
+        PurchaseDate: addFormPurchaseDate ? addFormPurchaseDate.toISOString().split('T')[0] : null,
         PurchasePrice: document.getElementById('purchasePrice').value || null,
         Condition: condition,
         SleeveCondition: sleeveCondition,
@@ -307,6 +315,16 @@ function App() {
       // Reload data
       loadData();
       showToast('Added to collection successfully');
+      
+      // Reset form
+      setSelectedArtist('');
+      setSelectedAlbum('');
+      setSelectedLabel('');
+      setCondition('Very Good');
+      setSleeveCondition('Very Good');
+      setAddFormPurchaseDate(null);
+      setNewArtistForm(false);
+      setNewAlbumForm(false);
     } catch (error) {
       showToast('Failed to add to collection', 'error');
     }
@@ -386,7 +404,6 @@ function App() {
 
   const renderAdd = () => (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold">Add to Collection</h2>
       
       <div className="grok-card p-6 space-y-4">
         <h3 className="text-lg font-semibold">1. Select or Create Artist</h3>
@@ -479,7 +496,31 @@ function App() {
 
       <div className="grok-card p-6 space-y-4">
         <h3 className="text-lg font-semibold">4. Collection Info</h3>
-        <Input id="purchaseDate" type="date" placeholder="Purchase Date" />
+        <div>
+          <label className="block text-sm font-medium mb-1">Purchase Date</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !addFormPurchaseDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {addFormPurchaseDate ? format(addFormPurchaseDate, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={addFormPurchaseDate}
+                onSelect={setAddFormPurchaseDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
         <Input id="purchasePrice" type="number" step="0.01" placeholder="Purchase Price" />
         <Select value={condition} onValueChange={setCondition}>
           <SelectTrigger>
@@ -551,6 +592,15 @@ function App() {
                   <span>K</span>
                 </Kbd>
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddForm(true)}
+                className="flex items-center gap-2 hover:scale-105 transition-transform"
+                title="Add new vinyl (Ctrl+N)"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
               <Button variant="outline" size="icon" onClick={toggleDarkMode} className="hover:scale-105 transition-transform">
                 {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
@@ -578,22 +628,34 @@ function App() {
       </header>
 
       <main className="container mx-auto p-4">
-        <Tabs defaultValue="collection" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 grok-card p-1">
-            <TabsTrigger value="collection" className="data-[state=active]:grok-gradient data-[state=active]:text-white">My Collection</TabsTrigger>
-            <TabsTrigger value="wishlist" className="data-[state=active]:grok-gradient data-[state=active]:text-white">Wishlist</TabsTrigger>
-            <TabsTrigger value="add" className="data-[state=active]:grok-gradient data-[state=active]:text-white">Add New</TabsTrigger>
-          </TabsList>
-          <TabsContent value="collection" className="mt-6">
-            {renderCollection()}
-          </TabsContent>
-          <TabsContent value="wishlist" className="mt-6">
-            {renderWishlist()}
-          </TabsContent>
-          <TabsContent value="add" className="mt-6">
+        {showAddForm ? (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowAddForm(false)}
+                className="flex items-center gap-2"
+              >
+                ← Back to Collection
+              </Button>
+              <h2 className="text-2xl font-bold">Add New Vinyl</h2>
+            </div>
             {renderAdd()}
-          </TabsContent>
-        </Tabs>
+          </div>
+        ) : (
+          <Tabs defaultValue="collection" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6 grok-card p-1">
+              <TabsTrigger value="collection" className="data-[state=active]:grok-gradient data-[state=active]:text-white">My Collection</TabsTrigger>
+              <TabsTrigger value="wishlist" className="data-[state=active]:grok-gradient data-[state=active]:text-white">Wishlist</TabsTrigger>
+            </TabsList>
+            <TabsContent value="collection" className="mt-6">
+              {renderCollection()}
+            </TabsContent>
+            <TabsContent value="wishlist" className="mt-6">
+              {renderWishlist()}
+            </TabsContent>
+          </Tabs>
+        )}
       </main>
 
       <Dialog open={modalOpen} onOpenChange={closeModal}>

@@ -490,16 +490,19 @@ app.get('/api/wishlist', (req, res) => {
   try {
     const wishlist = db.prepare(`
       SELECT w.*,
-             a.Title as AlbumTitle, a.Format,
-             ar.Name as ArtistName,
+             COALESCE(a.Title, ra.Title) as AlbumTitle,
+             COALESCE(a.Format, ra.Format) as Format,
+             COALESCE(ar.Name, rar.Name) as ArtistName,
              r.CatalogNumber, r.ColorOrEdition, r.ReleaseYear,
              l.Name as LabelName
       FROM Wishlist w
       LEFT JOIN Albums a ON w.AlbumID = a.AlbumID
       LEFT JOIN Releases r ON w.ReleaseID = r.ReleaseID
+      LEFT JOIN Albums ra ON r.AlbumID = ra.AlbumID
       LEFT JOIN Artists ar ON a.ArtistID = ar.ArtistID
+      LEFT JOIN Artists rar ON ra.ArtistID = rar.ArtistID
       LEFT JOIN Labels l ON r.LabelID = l.LabelID
-      ORDER BY w.Priority, ar.Name
+      ORDER BY w.Priority, COALESCE(ar.Name, rar.Name)
     `).all();
     res.json(wishlist);
   } catch (error) {
