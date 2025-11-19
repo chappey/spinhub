@@ -2,7 +2,7 @@
 
 
 ```sh
-npm install express helmet cors better-sqlite3
+npm install
 npm start
 ```
 
@@ -22,6 +22,32 @@ spinhub/
 └── README.md            # This file
 ```
 
+New structure
+```
+spinhub/
+├── client/                  ← Vite + React SPA
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── ...
+│   ├── public/              ← only truly static files (favicon, robots.txt, etc.)
+│   ├── vite.config.js
+│   ├── index.html
+│   └── package.json
+│
+├── server/                  ← All backend code
+│   ├── server.js            ← or index.js
+│   ├── schema.sql           # Database structure
+│   └── seed.sql             # Sample data
+│
+├── public/                  # Built production frontend (auto-generated)
+│   ├── index.html           # output from Vite build
+│   └── assets/
+│
+├── package.json             # Root package (for scripts & shared deps)
+├── .gitignore
+└── README.md                # This file
+```
 
 
 

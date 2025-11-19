@@ -8,17 +8,18 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_PATH = 'vinyl_collection.db';
+const DB_PATH = path.join(__dirname, '..', 'vinyl_collection.db');
 
 // Initialize SQLite database with auto-setup
 function initializeDatabase() {
-  const dbExists = fs.existsSync(DB_PATH);
+  const dbPath = DB_PATH;
+  const dbExists = fs.existsSync(dbPath);
   
   if (!dbExists) {
     console.log('📦 Database not found. Creating new database...');
   }
   
-  const db = new Database(DB_PATH, { verbose: console.log });
+  const db = new Database(dbPath);
   
   if (!dbExists) {
     try {
@@ -68,7 +69,7 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static files from 'public' directory
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ============================================================
 // ARTISTS ENDPOINTS
@@ -614,7 +615,7 @@ app.use((req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🎵 Vinyl Collection API running on http://localhost:${PORT}`);
-  console.log(`📊 Database: ${DB_PATH}`);
+  console.log(`📊 Database: ${path.relative(process.cwd(), DB_PATH)}`);
   console.log(`\nAvailable endpoints:`);
   console.log(`  GET    /api/artists`);
   console.log(`  GET    /api/albums`);
@@ -626,6 +627,12 @@ app.listen(PORT, () => {
 
 // Graceful shutdown
 process.on('SIGINT', () => {
+  db.close();
+  console.log('\n👋 Database closed. Server shutting down...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
   db.close();
   console.log('\n👋 Database closed. Server shutting down...');
   process.exit(0);
