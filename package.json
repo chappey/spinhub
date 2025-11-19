@@ -1,21 +1,35 @@
 {
   "name": "spinhub",
   "version": "1.0.0",
+  "private": true,
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "dev": "concurrently --kill-others-on-fail \"npm run server\" \"npm run client\"",
+    "start": "node server/server.js",
+    "server": "node server/server.js",
+    "client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "preview": "npm run build && npm run server"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["spinhub"],
+  "author": "chappey",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chappey/spinhub.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "type": "commonjs",
   "dependencies": {
     "better-sqlite3": "^12.4.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "helmet": "^8.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
-
 }

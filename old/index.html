@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vinyl Collection Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🎵 Vinyl Collection Manager</h1>
+            <div class="header-stats" id="headerStats">
+                <div class="stat">
+                    <span class="stat-value" id="totalRecords">0</span>
+                    <span class="stat-label">Records</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="totalArtists">0</span>
+                    <span class="stat-label">Artists</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="totalValue">$0</span>
+                    <span class="stat-label">Total Value</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="wishlistCount">0</span>
+                    <span class="stat-label">Wishlist</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="collection">My Collection</button>
+            <button class="tab-btn" data-tab="wishlist">Wishlist</button>
+            <button class="tab-btn" data-tab="add">Add New</button>
+        </nav>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search by artist, album, or catalog number...">
+            <button id="searchBtn">Search</button>
+            <button id="clearSearchBtn">Clear</button>
+        </div>
+
+        <!-- Collection Tab -->
+        <div id="collectionTab" class="tab-content active">
+            <div class="controls">
+                <select id="sortBy">
+                    <option value="artist">Sort by Artist</option>
+                    <option value="album">Sort by Album</option>
+                    <option value="year">Sort by Year</option>
+                    <option value="condition">Sort by Condition</option>
+                    <option value="price">Sort by Price</option>
+                </select>
+            </div>
+            
+            <div id="collectionGrid" class="grid">
+                <!-- Collection items will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Wishlist Tab -->
+        <div id="wishlistTab" class="tab-content">
+            <div id="wishlistGrid" class="grid">
+                <!-- Wishlist items will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Add New Tab -->
+        <div id="addTab" class="tab-content">
+            <div class="form-container">
+                <h2>Add to Collection</h2>
+                
+                <div class="form-section">
+                    <h3>1. Select or Create Artist</h3>
+                    <select id="artistSelect" required>
+                        <option value="">-- Select Artist --</option>
+                    </select>
+                    <button id="newArtistBtn" class="secondary-btn">+ New Artist</button>
+                    
+                    <div id="newArtistForm" class="hidden">
+                        <input type="text" id="artistName" placeholder="Artist Name" required>
+                        <input type="text" id="artistCountry" placeholder="Country">
+                        <input type="text" id="artistGenre" placeholder="Genre">
+                        <button id="saveArtistBtn">Save Artist</button>
+                        <button id="cancelArtistBtn" class="secondary-btn">Cancel</button>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>2. Select or Create Album</h3>
+                    <select id="albumSelect" required>
+                        <option value="">-- Select Album --</option>
+                    </select>
+                    <button id="newAlbumBtn" class="secondary-btn">+ New Album</button>
+                    
+                    <div id="newAlbumForm" class="hidden">
+                        <input type="text" id="albumTitle" placeholder="Album Title" required>
+                        <input type="text" id="albumGenre" placeholder="Genre">
+                        <input type="number" id="albumYear" placeholder="Release Year">
+                        <select id="albumFormat">
+                            <option value="LP">LP</option>
+                            <option value="EP">EP</option>
+                            <option value="Single">Single</option>
+                            <option value="12-inch">12-inch</option>
+                            <option value="7-inch">7-inch</option>
+                        </select>
+                        <button id="saveAlbumBtn">Save Album</button>
+                        <button id="cancelAlbumBtn" class="secondary-btn">Cancel</button>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>3. Release Details</h3>
+                    <select id="labelSelect">
+                        <option value="">-- Select Label (Optional) --</option>
+                    </select>
+                    <input type="text" id="catalogNumber" placeholder="Catalog Number">
+                    <input type="text" id="countryOfRelease" placeholder="Country of Release">
+                    <input type="number" id="releaseYear" placeholder="Release Year">
+                    <input type="text" id="formatVariant" placeholder="Format Variant (e.g., 180g, Picture Disc)">
+                    <input type="text" id="colorEdition" placeholder="Color/Edition (e.g., Blue Vinyl, Gatefold)">
+                </div>
+
+                <div class="form-section">
+                    <h3>4. Collection Info</h3>
+                    <input type="date" id="purchaseDate" placeholder="Purchase Date">
+                    <input type="number" id="purchasePrice" placeholder="Purchase Price" step="0.01">
+                    <select id="condition">
+                        <option value="Mint">Mint (M)</option>
+                        <option value="Near Mint">Near Mint (NM)</option>
+                        <option value="Very Good Plus">Very Good Plus (VG+)</option>
+                        <option value="Very Good" selected>Very Good (VG)</option>
+                        <option value="Good Plus">Good Plus (G+)</option>
+                        <option value="Good">Good (G)</option>
+                        <option value="Fair">Fair (F)</option>
+                        <option value="Poor">Poor (P)</option>
+                    </select>
+                    <select id="sleeveCondition">
+                        <option value="Mint">Sleeve: Mint (M)</option>
+                        <option value="Near Mint">Sleeve: Near Mint (NM)</option>
+                        <option value="Very Good Plus">Sleeve: Very Good Plus (VG+)</option>
+                        <option value="Very Good" selected>Sleeve: Very Good (VG)</option>
+                        <option value="Good Plus">Sleeve: Good Plus (G+)</option>
+                        <option value="Good">Sleeve: Good (G)</option>
+                        <option value="Fair">Sleeve: Fair (F)</option>
+                        <option value="Poor">Sleeve: Poor (P)</option>
+                    </select>
+                    <input type="text" id="storageLocation" placeholder="Storage Location (e.g., Shelf A)">
+                    <input type="text" id="acquiredFrom" placeholder="Acquired From">
+                    <textarea id="notes" placeholder="Notes" rows="3"></textarea>
+                </div>
+
+                <button id="addToCollectionBtn" class="primary-btn">Add to Collection</button>
+            </div>
+        </div>
+
+        <!-- Modal for viewing/editing details -->
+        <div id="detailModal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="modalBody">
+                    <!-- Details will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="spinner hidden">
+            <div class="spinner-circle"></div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
