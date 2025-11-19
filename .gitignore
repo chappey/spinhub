@@ -1,6 +1,6 @@
 # Project specific ignores
 vinyl_collection.db
-
+public/
 
 
 # From: https://github.com/github/gitignore/blob/main/Node.gitignore
