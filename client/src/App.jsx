@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
 import { Kbd } from '@/components/ui/kbd'
-import { Moon, Sun, Disc, Search, Command, CalendarIcon, Plus } from 'lucide-react'
+import { Moon, Sun, Disc, Search, Command, CalendarIcon, Plus, Grid3X3, List } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -47,6 +47,7 @@ function App() {
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addFormPurchaseDate, setAddFormPurchaseDate] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
 
   useEffect(() => {
     loadData();
@@ -61,15 +62,13 @@ function App() {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
+        e.stopPropagation();
         setSearchDialogOpen(true);
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
-        e.preventDefault();
-        setShowAddForm(true);
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    // Use capture phase to ensure we handle the event before browser defaults
+    document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
@@ -345,60 +344,153 @@ function App() {
             <SelectItem value="price">Sort by Price</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+            className="rounded-r-none"
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className="rounded-l-none"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sortedCollection.map(item => (
-          <Card key={item.CollectionID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('collection', item)}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Artist:</span>
-                <span className="font-medium">{item.ArtistName}</span>
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sortedCollection.map(item => (
+            <Card key={item.CollectionID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('collection', item)}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Artist:</span>
+                  <span className="font-medium">{item.ArtistName}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Catalog:</span>
+                  <span className="font-medium">{item.CatalogNumber}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Condition:</span>
+                  <span className="font-medium">{item.Condition}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Label:</span>
+                  <span className="font-medium">{item.LabelName}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {sortedCollection.map(item => (
+            <div
+              key={item.CollectionID}
+              className="grok-card p-4 hover:bg-accent/50 cursor-pointer transition-colors"
+              onClick={() => openModal('collection', item)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-primary truncate">{item.AlbumTitle}</h3>
+                    <span className="text-sm text-muted-foreground">by</span>
+                    <span className="text-sm font-medium truncate">{item.ArtistName}</span>
+                  </div>
+                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                    <span>Catalog: {item.CatalogNumber || 'N/A'}</span>
+                    <span>Condition: {item.Condition}</span>
+                    <span>Label: {item.LabelName || 'Unknown'}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Catalog:</span>
-                <span className="font-medium">{item.CatalogNumber}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Condition:</span>
-                <span className="font-medium">{item.Condition}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Label:</span>
-                <span className="font-medium">{item.LabelName}</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
   const renderWishlist = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {wishlist.map(item => (
-        <Card key={item.WishlistID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('wishlist', item)}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle || 'N/A'}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Artist:</span>
-              <span className="font-medium">{item.ArtistName || 'N/A'}</span>
+    <div>
+      <div className="flex gap-3 mb-6">
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+            className="rounded-r-none"
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className="rounded-l-none"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {wishlist.map(item => (
+            <Card key={item.WishlistID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => openModal('wishlist', item)}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle || 'N/A'}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Artist:</span>
+                  <span className="font-medium">{item.ArtistName || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Priority:</span>
+                  <span className="font-medium">{item.Priority}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Max Price:</span>
+                  <span className="font-medium">${item.MaxPrice || 'N/A'}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {wishlist.map(item => (
+            <div
+              key={item.WishlistID}
+              className="grok-card p-4 hover:bg-accent/50 cursor-pointer transition-colors"
+              onClick={() => openModal('wishlist', item)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-primary truncate">{item.AlbumTitle || 'Unknown Album'}</h3>
+                    <span className="text-sm text-muted-foreground">by</span>
+                    <span className="text-sm font-medium truncate">{item.ArtistName || 'Unknown Artist'}</span>
+                  </div>
+                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                    <span>Priority: {item.Priority}</span>
+                    <span>Max Price: ${item.MaxPrice || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Priority:</span>
-              <span className="font-medium">{item.Priority}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Max Price:</span>
-              <span className="font-medium">${item.MaxPrice || 'N/A'}</span>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -597,7 +689,6 @@ function App() {
                 size="sm"
                 onClick={() => setShowAddForm(true)}
                 className="flex items-center gap-2 hover:scale-105 transition-transform"
-                title="Add new vinyl (Ctrl+N)"
               >
                 <Plus className="h-4 w-4" />
               </Button>
