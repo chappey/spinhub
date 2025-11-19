@@ -32,7 +32,7 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Search state
-    const { query: searchQuery, setQuery: setSearchQuery, results: searchResults, loading: isSearching } = useDiscogs();
+    const { query: searchQuery, setQuery: setSearchQuery, results: searchResults, loading: isSearching, error: searchError } = useDiscogs();
 
     // Form state
     const [formData, setFormData] = useState({
@@ -101,7 +101,7 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
                     artistId = existingArtist.ArtistID;
                 } else {
                     const newArtist = await api.createArtist({ Name: formData.artist });
-                    artistId = newArtist.lastInsertRowid;
+                    artistId = newArtist.ArtistID;
                 }
             }
 
@@ -113,7 +113,7 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
                     labelId = existingLabel.LabelID;
                 } else {
                     const newLabel = await api.createLabel({ Name: formData.label });
-                    labelId = newLabel.lastInsertRowid;
+                    labelId = newLabel.LabelID;
                 }
             }
 
@@ -121,24 +121,25 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
             const newAlbum = await api.createAlbum({
                 Title: formData.album,
                 ArtistID: artistId,
-                ReleaseYear: formData.year ? parseInt(formData.year) : undefined,
+                OriginalReleaseYear: formData.year ? parseInt(formData.year) : undefined,
                 Genre: formData.genre,
-                LabelID: labelId
+                Format: formData.format
             });
-            const albumId = newAlbum.lastInsertRowid;
+            const albumId = newAlbum.AlbumID;
 
             // 4. Create Release
-            await api.createRelease({
+            const newRelease = await api.createRelease({
                 AlbumID: albumId,
-                Format: formData.format,
-                DiscogsID: formData.discogsId,
-                CatNo: formData.catNo
+                FormatVariant: formData.format,
+                CatalogNumber: formData.catNo,
+                LabelID: labelId
             });
+            const releaseId = newRelease.ReleaseID;
 
             // 5. Add to Collection or Wishlist
             if (activeTab === 'collection') {
                 await api.addToCollection({
-                    AlbumID: albumId,
+                    ReleaseID: releaseId,
                     Condition: formData.condition,
                     PurchasePrice: formData.price ? parseFloat(formData.price) : undefined,
                     PurchaseDate: formData.purchaseDate,
@@ -150,7 +151,7 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
                 });
             } else {
                 await api.addToWishlist({
-                    AlbumID: albumId,
+                    ReleaseID: releaseId,
                     Notes: formData.notes,
                     Priority: 'Medium' // Default priority
                 });
@@ -198,6 +199,7 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
                                 </div>
                                 {isSearching && <div className="flex items-center px-2"><LoadingSpinner size={16} /></div>}
                             </div>
+                            {searchError && <p className="text-sm text-destructive">{searchError}</p>}
                         </div>
 
                         {searchResults.length > 0 && (

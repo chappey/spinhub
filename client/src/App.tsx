@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { useCollectionData } from '@/hooks/useCollectionData';
 import { CollectionItem, WishlistItem } from '@/types';
 import { Toaster } from '@/components/ui/toaster';
+import { Statistics } from '@/components/features/Statistics';
 
 function App() {
     const [currentPage, setCurrentPage] = useState('dashboard');
@@ -168,14 +169,11 @@ function App() {
                         onMoveToCollection={handleMoveToCollection}
                     />
                 ) : (
-                    <div className="space-y-6">
-                        <div>
-                            <h2 className="text-3xl font-bold tracking-tight">Statistics</h2>
-                            <p className="text-muted-foreground">
-                                Detailed analytics coming soon...
-                            </p>
-                        </div>
-                    </div>
+                    <Statistics
+                        stats={stats}
+                        collection={collection}
+                        loading={loading}
+                    />
                 )}
             </Layout>
 
