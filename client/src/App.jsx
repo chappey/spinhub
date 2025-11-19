@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
-import { Moon, Sun, Disc, CalendarIcon } from 'lucide-react'
+import { Kbd } from '@/components/ui/kbd'
+import { Moon, Sun, Disc, Search, Command, CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +44,7 @@ function App() {
   const [modalSleeveCondition, setModalSleeveCondition] = useState('Very Good');
   const [newArtistForm, setNewArtistForm] = useState(false);
   const [newAlbumForm, setNewAlbumForm] = useState(false);
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -52,6 +54,17 @@ function App() {
       setDarkMode(true);
       document.documentElement.classList.add('dark');
     }
+
+    // Add keyboard shortcut for search
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchDialogOpen(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const toggleDarkMode = () => {
@@ -371,43 +384,6 @@ function App() {
     </div>
   );
 
-  const renderSearch = () => (
-    <div>
-      <div className="flex gap-3 mb-6">
-        <Input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by artist, album, or catalog number..."
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          className="flex-1 grok-card"
-        />
-        <Button onClick={handleSearch} className="grok-button px-6">
-          Search
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {searchResults.map(item => (
-          <Card key={item.CollectionID} className="grok-card hover:scale-105 transition-transform duration-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Artist:</span>
-                <span className="font-medium">{item.ArtistName}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Catalog:</span>
-                <span className="font-medium">{item.CatalogNumber}</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-
   const renderAdd = () => (
     <div className="max-w-2xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold">Add to Collection</h2>
@@ -561,9 +537,24 @@ function App() {
                 SpinHub
               </h1>
             </div>
-            <Button variant="outline" size="icon" onClick={toggleDarkMode} className="hover:scale-105 transition-transform">
-              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSearchDialogOpen(true)}
+                className="flex items-center gap-2 hover:scale-105 transition-transform"
+              >
+                <Search className="h-4 w-4" />
+                <span className="hidden sm:inline">Search</span>
+                <Kbd className="hidden sm:inline-flex">
+                  <Command className="h-3 w-3" />
+                  <span>K</span>
+                </Kbd>
+              </Button>
+              <Button variant="outline" size="icon" onClick={toggleDarkMode} className="hover:scale-105 transition-transform">
+                {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
           <div className="flex justify-center gap-4 mt-4 flex-wrap">
             <div className="grok-card px-4 py-3 rounded-lg text-center min-w-[100px]">
@@ -588,10 +579,9 @@ function App() {
 
       <main className="container mx-auto p-4">
         <Tabs defaultValue="collection" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6 grok-card p-1">
+          <TabsList className="grid w-full grid-cols-3 mb-6 grok-card p-1">
             <TabsTrigger value="collection" className="data-[state=active]:grok-gradient data-[state=active]:text-white">My Collection</TabsTrigger>
             <TabsTrigger value="wishlist" className="data-[state=active]:grok-gradient data-[state=active]:text-white">Wishlist</TabsTrigger>
-            <TabsTrigger value="search" className="data-[state=active]:grok-gradient data-[state=active]:text-white">Search</TabsTrigger>
             <TabsTrigger value="add" className="data-[state=active]:grok-gradient data-[state=active]:text-white">Add New</TabsTrigger>
           </TabsList>
           <TabsContent value="collection" className="mt-6">
@@ -599,9 +589,6 @@ function App() {
           </TabsContent>
           <TabsContent value="wishlist" className="mt-6">
             {renderWishlist()}
-          </TabsContent>
-          <TabsContent value="search" className="mt-6">
-            {renderSearch()}
           </TabsContent>
           <TabsContent value="add" className="mt-6">
             {renderAdd()}
@@ -736,6 +723,49 @@ function App() {
               {modalData.Notes && <p><strong>Notes:</strong> {modalData.Notes}</p>}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Search Collection</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by artist, album, or catalog number..."
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="flex-1"
+                autoFocus
+              />
+              <Button onClick={handleSearch}>
+                Search
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-96 overflow-y-auto">
+              {searchResults.map(item => (
+                <Card key={item.CollectionID} className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => { setSearchDialogOpen(false); openModal('collection', item); }}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Artist:</span>
+                      <span className="font-medium">{item.ArtistName}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Catalog:</span>
+                      <span className="font-medium">{item.CatalogNumber}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
