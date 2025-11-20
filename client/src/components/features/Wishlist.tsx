@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Disc, Eye, Edit, Trash2, Move } from 'lucide-react';
+import { Disc, Trash2, Move } from 'lucide-react';
 import { WishlistItem } from '@/types';
 import { SortControls } from '../shared/SortControls';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,6 +17,8 @@ interface WishlistProps {
 export function Wishlist({ wishlist, onRefresh, onMoveToCollection }: WishlistProps) {
     const [sortBy, setSortBy] = useState('artist');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<WishlistItem | null>(null);
     const { toast } = useToast();
 
     const sortedWishlist = useMemo(() => {
@@ -38,15 +41,20 @@ export function Wishlist({ wishlist, onRefresh, onMoveToCollection }: WishlistPr
         });
     }, [wishlist, sortBy]);
 
-    const handleDeleteItem = async (item: WishlistItem) => {
-        if (confirm(`Are you sure you want to remove "${item.AlbumTitle}" from wishlist?`)) {
-            try {
-                await api.deleteWishlistItem(item.WishlistID);
-                toast({ title: 'Item removed from wishlist' });
-                onRefresh();
-            } catch (error) {
-                toast({ title: 'Failed to remove item', variant: 'destructive' });
-            }
+    const handleDeleteItem = (item: WishlistItem) => {
+        setItemToDelete(item);
+        setConfirmDialogOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
+        try {
+            await api.deleteWishlistItem(itemToDelete.WishlistID);
+            toast({ title: 'Item removed from wishlist' });
+            onRefresh();
+        } catch (error) {
+            toast({ title: 'Failed to remove item', variant: 'destructive' });
         }
     };
 
@@ -153,6 +161,17 @@ export function Wishlist({ wishlist, onRefresh, onMoveToCollection }: WishlistPr
                     ))}
                 </div>
             )}
+
+            <ConfirmDialog
+                open={confirmDialogOpen}
+                onOpenChange={setConfirmDialogOpen}
+                onConfirm={confirmDelete}
+                title="Remove from Wishlist"
+                description={`Are you sure you want to remove "${itemToDelete?.AlbumTitle}" from your wishlist?`}
+                confirmText="Remove"
+                cancelText="Cancel"
+                variant="destructive"
+            />
         </div>
     );
 }

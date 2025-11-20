@@ -5,6 +5,7 @@ import { Disc, Eye, Edit, Trash2 } from 'lucide-react';
 import { CollectionItem } from '@/types';
 import { SortControls } from '../shared/SortControls';
 import { VinylModal } from '../shared/VinylModal';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,6 +20,8 @@ export function CollectionList({ collection, onRefresh }: CollectionListProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<CollectionItem | null>(null);
     const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<CollectionItem | null>(null);
     const { toast } = useToast();
 
     const sortedCollection = useMemo(() => {
@@ -53,16 +56,22 @@ export function CollectionList({ collection, onRefresh }: CollectionListProps) {
         setModalOpen(true);
     };
 
-    const handleDeleteItem = async (item: CollectionItem) => {
-        if (confirm(`Are you sure you want to delete "${item.AlbumTitle}"?`)) {
-            try {
-                await api.deleteCollectionItem(item.CollectionID);
-                toast({ title: 'Item deleted successfully' });
-                onRefresh();
-            } catch (error) {
-                toast({ title: 'Failed to delete item', variant: 'destructive' });
-            }
+    const handleDeleteItem = (item: CollectionItem) => {
+        setItemToDelete(item);
+        setConfirmDialogOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+        try {
+            await api.deleteCollectionItem(itemToDelete.CollectionID);
+            toast({ title: 'Item deleted successfully' });
+            onRefresh();
+        } catch (error) {
+            toast({ title: 'Failed to delete item', variant: 'destructive' });
         }
+        setConfirmDialogOpen(false);
+        setItemToDelete(null);
     };
 
     return (
@@ -185,6 +194,17 @@ export function CollectionList({ collection, onRefresh }: CollectionListProps) {
                 mode={modalMode}
                 data={selectedItem}
                 onSave={onRefresh}
+            />
+
+            <ConfirmDialog
+                open={confirmDialogOpen}
+                onOpenChange={setConfirmDialogOpen}
+                onConfirm={confirmDelete}
+                title="Delete from Collection"
+                description={`Are you sure you want to delete "${itemToDelete?.AlbumTitle}" from your collection?`}
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="destructive"
             />
         </div>
     );
