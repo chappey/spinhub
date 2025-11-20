@@ -2,7 +2,7 @@ import {
   Artist, Label, Album, Release, CollectionItem, WishlistItem, Stats, DiscogsResult 
 } from '../types';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, options);

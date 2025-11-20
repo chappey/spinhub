@@ -4,8 +4,6 @@
 -- ============================================================
 -- SAMPLE ARTISTS
 -- ============================================================
--- SAMPLE ARTISTS
--- ============================================================
 INSERT INTO Artists (Name, CountryOfOrigin, PrimaryGenre, Description) VALUES
 ('Miles Davis', 'United States', 'Jazz', 'Legendary jazz trumpeter and composer'),
 ('Pink Floyd', 'United Kingdom', 'Progressive Rock', 'Iconic progressive rock band'),

@@ -56,8 +56,16 @@ export function SearchDialog({ open, onOpenChange, onSelectResult }: SearchDialo
                                     }}
                                 >
                                     <div className="flex items-center gap-3 w-full text-left">
-                                        <div className="flex-shrink-0 w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                                            <Disc className="w-5 h-5 text-muted-foreground" />
+                                        <div className="flex-shrink-0 w-10 h-10 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                                            {item.CacheID ? (
+                                                <img
+                                                    src={`/api/images/${item.CacheID}`}
+                                                    alt={item.AlbumTitle}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <Disc className="w-5 h-5 text-muted-foreground" />
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="font-medium truncate">{item.AlbumTitle}</div>

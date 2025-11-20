@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Library, BarChart3, Disc, Heart, Plus, Search } from 'lucide-react';
@@ -14,6 +15,17 @@ interface DashboardProps {
 }
 
 export function Dashboard({ stats, recentAdditions, loading, onAddClick, onSearchClick, onBrowseClick }: DashboardProps) {
+    const [showThumbnails, setShowThumbnails] = useState(true);
+
+    useEffect(() => {
+        const checkThumbnails = () => {
+            const stored = localStorage.getItem('thumbnailsEnabled');
+            setShowThumbnails(stored !== 'false');
+        };
+        checkThumbnails();
+        window.addEventListener('storage', checkThumbnails);
+        return () => window.removeEventListener('storage', checkThumbnails);
+    }, []);
     return (
         <div className="space-y-6">
             <div>
@@ -113,7 +125,15 @@ export function Dashboard({ stats, recentAdditions, loading, onAddClick, onSearc
                                 recentAdditions.slice(0, 5).map((item) => (
                                     <div key={item.CollectionID} className="flex items-center">
                                         <div className="flex-shrink-0 w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                                            <Disc className="w-5 h-5 text-muted-foreground" />
+                                            {showThumbnails && item.CacheID ? (
+                                                <img
+                                                    src={`/api/images/${item.CacheID}`}
+                                                    alt={item.AlbumTitle}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <Disc className="w-5 h-5 text-muted-foreground" />
+                                            )}
                                         </div>
                                         <div className="ml-4 space-y-1">
                                             <p className="text-sm font-medium leading-none">

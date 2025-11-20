@@ -47,6 +47,7 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
         catNo: '',
         format: initialData?.format || 'LP',
         discogsId: undefined as number | undefined,
+        thumbUrl: '',
         condition: 'Very Good Plus',
         price: '',
         purchaseDate: new Date().toISOString().split('T')[0],
@@ -76,6 +77,7 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
             catNo: result.catno || '',
             format: result.format?.[0] || 'LP',
             discogsId: result.id,
+            thumbUrl: result.thumb,
         });
         setStep(2);
     };
@@ -132,7 +134,9 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
                 AlbumID: albumId,
                 FormatVariant: formData.format,
                 CatalogNumber: formData.catNo,
-                LabelID: labelId
+                LabelID: labelId,
+                DiscogsID: formData.discogsId,
+                ThumbURL: formData.thumbUrl
             });
             const releaseId = newRelease.ReleaseID;
 
