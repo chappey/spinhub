@@ -46,6 +46,7 @@ export interface Release {
   LabelName?: string; // Joined field
   AlbumTitle?: string; // Joined field
   ArtistName?: string; // Joined field
+  ThumbURL?: string;
 }
 
 export interface Track {
@@ -78,6 +79,7 @@ export interface CollectionItem {
   Format?: string;
   ArtistName?: string;
   LabelName?: string;
+  CacheID?: number;
 }
 
 export interface WishlistItem {
@@ -97,6 +99,7 @@ export interface WishlistItem {
   ColorOrEdition?: string;
   ReleaseYear?: number;
   LabelName?: string;
+  CacheID?: number;
 }
 
 export interface Stats {

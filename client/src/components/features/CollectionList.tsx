@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Disc, Eye, Edit, Trash2 } from 'lucide-react';
@@ -22,7 +22,18 @@ export function CollectionList({ collection, onRefresh }: CollectionListProps) {
     const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<CollectionItem | null>(null);
+    const [showThumbnails, setShowThumbnails] = useState(true);
     const { toast } = useToast();
+
+    useEffect(() => {
+        const checkThumbnails = () => {
+            const stored = localStorage.getItem('thumbnailsEnabled');
+            setShowThumbnails(stored !== 'false');
+        };
+        checkThumbnails();
+        window.addEventListener('storage', checkThumbnails);
+        return () => window.removeEventListener('storage', checkThumbnails);
+    }, []);
 
     const sortedCollection = useMemo(() => {
         return [...collection].sort((a, b) => {
@@ -91,8 +102,16 @@ export function CollectionList({ collection, onRefresh }: CollectionListProps) {
                                 <Card className="grok-card hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => handleViewDetails(item)}>
                                     <CardHeader className="pb-3">
                                         <div className="flex items-start gap-3">
-                                            <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center">
-                                                <Disc className="w-8 h-8 text-muted-foreground" />
+                                            <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                                                {showThumbnails && item.CacheID ? (
+                                                    <img
+                                                        src={`/api/images/${item.CacheID}`}
+                                                        alt={item.AlbumTitle}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <Disc className="w-8 h-8 text-muted-foreground" />
+                                                )}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <CardTitle className="text-lg font-semibold text-primary">{item.AlbumTitle}</CardTitle>
@@ -148,8 +167,16 @@ export function CollectionList({ collection, onRefresh }: CollectionListProps) {
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center">
-                                                <Disc className="w-6 h-6 text-muted-foreground" />
+                                            <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                                                {showThumbnails && item.CacheID ? (
+                                                    <img
+                                                        src={`/api/images/${item.CacheID}`}
+                                                        alt={item.AlbumTitle}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <Disc className="w-6 h-6 text-muted-foreground" />
+                                                )}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-3">

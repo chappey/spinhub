@@ -18,30 +18,30 @@ const DB_PATH = path.join(__dirname, '..', 'vinyl_collection.db');
 function initializeDatabase() {
   const dbPath = DB_PATH;
   const dbExists = fs.existsSync(dbPath);
-  
+
   if (!dbExists) {
     console.log('📦 Database not found. Creating new database...');
   }
-  
+
   const db = new Database(dbPath);
-  
+
   if (!dbExists) {
     try {
       // Check if schema.sql exists
       const schemaPath = path.join(__dirname, 'schema.sql');
       const seedPath = path.join(__dirname, 'seed.sql');
-      
+
       if (!fs.existsSync(schemaPath)) {
         console.error('❌ Error: schema.sql not found in project directory');
         console.log('Please create schema.sql with your database structure');
         process.exit(1);
       }
-      
+
       console.log('📋 Running schema.sql...');
       const schema = fs.readFileSync(schemaPath, 'utf8');
       db.exec(schema);
       console.log('✅ Database schema created successfully');
-      
+
       // Run seed.sql if it exists
       if (fs.existsSync(seedPath)) {
         console.log('🌱 Running seed.sql...');
@@ -51,7 +51,7 @@ function initializeDatabase() {
       } else {
         console.log('ℹ️  seed.sql not found - skipping sample data (this is optional)');
       }
-      
+
       console.log('🎉 Database initialization complete!\n');
     } catch (error) {
       console.error('❌ Error initializing database:', error.message);
@@ -60,12 +60,19 @@ function initializeDatabase() {
   } else {
     console.log('✅ Using existing database: vinyl_collection.db\n');
   }
-  
+
   return db;
 }
 
 // Initialize the database
 const db = initializeDatabase();
+
+// Add ThumbURL column if it doesn't exist (for backward compatibility)
+try {
+  db.exec('ALTER TABLE Releases ADD COLUMN ThumbURL TEXT;');
+} catch (error) {
+  // Column might already exist, ignore
+}
 
 // Middleware
 app.use(helmet());
@@ -74,6 +81,198 @@ app.use(express.json());
 
 // Serve static files from 'public' directory
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// ============================================================
+// DISCOGS CACHE POPULATION SYSTEM
+// ============================================================
+
+// Queue for cache population to handle rate limiting
+let cacheQueue = [];
+let isProcessingQueue = false;
+
+// Helper: Download image from URL and return as Buffer
+async function downloadImage(url) {
+  try {
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: {
+        'User-Agent': process.env.DISCOGS_USER_AGENT || 'SpinHub/1.0'
+      }
+    });
+    return Buffer.from(response.data);
+  } catch (error) {
+    console.error(`Failed to download image from ${url}:`, error.message);
+    return null;
+  }
+}
+
+// Helper: Fetch release or master data from Discogs API
+async function fetchDiscogsRelease(discogsId, queryType = 'release') {
+  try {
+    const endpoint = queryType === 'master' 
+      ? `https://api.discogs.com/masters/${discogsId}`
+      : `https://api.discogs.com/releases/${discogsId}`;
+    
+    const response = await axios.get(endpoint, {
+      params: {
+        key: process.env.DISCOGS_KEY,
+        secret: process.env.DISCOGS_SECRET
+      },
+      headers: {
+        'User-Agent': process.env.DISCOGS_USER_AGENT || 'SpinHub/1.0'
+      },
+      timeout: 10000
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch Discogs ${queryType} ${discogsId}:`, error.message);
+    return null;
+  }
+}
+
+// Helper: Search Discogs for album by title and artist
+async function searchDiscogsForAlbum(albumTitle, artistName) {
+  try {
+    const query = artistName ? `${artistName} ${albumTitle}` : albumTitle;
+    
+    const response = await axios.get('https://api.discogs.com/database/search', {
+      params: {
+        q: query,
+        type: 'release',
+        per_page: 5,
+        key: process.env.DISCOGS_KEY,
+        secret: process.env.DISCOGS_SECRET
+      },
+      headers: {
+        'User-Agent': process.env.DISCOGS_USER_AGENT || 'SpinHub/1.0'
+      },
+      timeout: 10000
+    });
+
+    if (response.data.results && response.data.results.length > 0) {
+      // Return the first match
+      return {
+        id: response.data.results[0].id,
+        type: response.data.results[0].type || 'release'
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Failed to search Discogs for "${albumTitle}":`, error.message);
+    return null;
+  }
+}
+
+// Main: Populate cache for a single release
+async function populateCacheForRelease(releaseId) {
+  try {
+    // Get release with album and artist info
+    const release = db.prepare(`
+      SELECT r.*, a.Title as AlbumTitle, ar.Name as ArtistName
+      FROM Releases r
+      JOIN Albums a ON r.AlbumID = a.AlbumID
+      JOIN Artists ar ON a.ArtistID = ar.ArtistID
+      WHERE r.ReleaseID = ?
+    `).get(releaseId);
+
+    if (!release) {
+      console.log(`Release ${releaseId} not found`);
+      return false;
+    }
+
+    let discogsId = release.DiscogsID;
+    let queryType = 'release';
+
+    // If no DiscogsID, search for it
+    if (!discogsId) {
+      console.log(`No DiscogsID for "${release.AlbumTitle}", searching...`);
+      const searchResult = await searchDiscogsForAlbum(release.AlbumTitle, release.ArtistName);
+      
+      if (searchResult) {
+        discogsId = searchResult.id;
+        queryType = searchResult.type;
+        
+        // Update the Releases table with found DiscogsID
+        db.prepare('UPDATE Releases SET DiscogsID = ? WHERE ReleaseID = ?')
+          .run(discogsId, releaseId);
+        console.log(`✅ Found and saved DiscogsID ${discogsId} for "${release.AlbumTitle}"`);
+      } else {
+        console.log(`❌ No Discogs match found for "${release.AlbumTitle}"`);
+        return false;
+      }
+    }
+
+    // Check if already cached
+    const existing = db.prepare('SELECT CacheID FROM DiscogsCache WHERE DiscogsID = ? AND QueryType = ?')
+      .get(discogsId, queryType);
+    
+    if (existing) {
+      console.log(`Cache already exists for DiscogsID ${discogsId}`);
+      return true;
+    }
+
+    // Fetch data from Discogs
+    console.log(`Fetching ${queryType} ${discogsId}...`);
+    const discogsData = await fetchDiscogsRelease(discogsId, queryType);
+    
+    if (!discogsData) {
+      return false;
+    }
+
+    // Download primary image
+    let imageBlob = null;
+    const imageUrl = release.ThumbURL || discogsData.images?.[0]?.uri || discogsData.thumb;
+    
+    if (imageUrl) {
+      console.log(`Downloading image for ${discogsId}...`);
+      imageBlob = await downloadImage(imageUrl);
+    }
+
+    // Store in cache (no expiration - permanent)
+    db.prepare(`
+      INSERT INTO DiscogsCache (DiscogsID, QueryType, Data, ImageBlob, ExpiresAt)
+      VALUES (?, ?, ?, ?, NULL)
+    `).run(
+      discogsId,
+      queryType,
+      JSON.stringify(discogsData),
+      imageBlob
+    );
+
+    console.log(`✅ Cached ${queryType} ${discogsId} for "${release.AlbumTitle}"`);
+    return true;
+
+  } catch (error) {
+    console.error(`Error populating cache for release ${releaseId}:`, error.message);
+    return false;
+  }
+}
+
+// Process cache queue with rate limiting
+async function processCacheQueue() {
+  if (isProcessingQueue || cacheQueue.length === 0) {
+    return;
+  }
+
+  isProcessingQueue = true;
+  console.log(`\n📦 Processing cache queue (${cacheQueue.length} items)...`);
+
+  while (cacheQueue.length > 0) {
+    const releaseId = cacheQueue.shift();
+    await populateCacheForRelease(releaseId);
+    
+    // Rate limiting: wait 1 second between requests
+    if (cacheQueue.length > 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  isProcessingQueue = false;
+  console.log(`✅ Cache queue processing complete\n`);
+}
 
 // ============================================================
 // ARTISTS ENDPOINTS
@@ -247,7 +446,7 @@ app.get('/api/albums/:id', (req, res) => {
       JOIN Artists ar ON a.ArtistID = ar.ArtistID
       WHERE a.AlbumID = ?
     `).get(req.params.id);
-    
+
     if (!album) {
       return res.status(404).json({ error: 'Album not found' });
     }
@@ -333,15 +532,15 @@ app.get('/api/releases/:id', (req, res) => {
       JOIN Artists ar ON a.ArtistID = ar.ArtistID
       WHERE r.ReleaseID = ?
     `).get(req.params.id);
-    
+
     if (!release) {
       return res.status(404).json({ error: 'Release not found' });
     }
-    
+
     // Get tracks for this release
     const tracks = db.prepare('SELECT * FROM Tracks WHERE ReleaseID = ? ORDER BY Side, TrackNumber').all(req.params.id);
     release.tracks = tracks;
-    
+
     res.json(release);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -351,12 +550,19 @@ app.get('/api/releases/:id', (req, res) => {
 // Create new release
 app.post('/api/releases', (req, res) => {
   try {
-    const { AlbumID, LabelID, CatalogNumber, CountryOfRelease, ReleaseYear, AlternateTitle, FormatVariant, ColorOrEdition, Notes } = req.body;
+    const { AlbumID, LabelID, CatalogNumber, CountryOfRelease, ReleaseYear, AlternateTitle, FormatVariant, ColorOrEdition, Notes, DiscogsID, ThumbURL } = req.body;
     const stmt = db.prepare(
-      'INSERT INTO Releases (AlbumID, LabelID, CatalogNumber, CountryOfRelease, ReleaseYear, AlternateTitle, FormatVariant, ColorOrEdition, Notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO Releases (AlbumID, LabelID, CatalogNumber, CountryOfRelease, ReleaseYear, AlternateTitle, FormatVariant, ColorOrEdition, Notes, DiscogsID, ThumbURL) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    const result = stmt.run(AlbumID, LabelID, CatalogNumber, CountryOfRelease, ReleaseYear, AlternateTitle, FormatVariant, ColorOrEdition, Notes);
-    res.status(201).json({ ReleaseID: result.lastInsertRowid });
+    const result = stmt.run(AlbumID, LabelID, CatalogNumber, CountryOfRelease, ReleaseYear, AlternateTitle, FormatVariant, ColorOrEdition, Notes, DiscogsID, ThumbURL);
+    const releaseId = result.lastInsertRowid;
+    
+    // If DiscogsID provided, populate cache immediately
+    if (DiscogsID) {
+      populateCacheForRelease(releaseId);
+    }
+    
+    res.status(201).json({ ReleaseID: releaseId });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -404,12 +610,14 @@ app.get('/api/collection', (req, res) => {
       SELECT c.*, r.CatalogNumber, r.ColorOrEdition, r.ReleaseYear,
              a.Title as AlbumTitle, a.Format,
              ar.Name as ArtistName,
-             l.Name as LabelName
+             l.Name as LabelName,
+             dc.CacheID
       FROM Collection c
       JOIN Releases r ON c.ReleaseID = r.ReleaseID
       JOIN Albums a ON r.AlbumID = a.AlbumID
       JOIN Artists ar ON a.ArtistID = ar.ArtistID
       LEFT JOIN Labels l ON r.LabelID = l.LabelID
+      LEFT JOIN DiscogsCache dc ON r.DiscogsID = dc.DiscogsID
       ORDER BY ar.Name, a.Title
     `).all();
     res.json(collection);
@@ -430,7 +638,7 @@ app.get('/api/collection/:id', (req, res) => {
       LEFT JOIN Labels l ON r.LabelID = l.LabelID
       WHERE c.CollectionID = ?
     `).get(req.params.id);
-    
+
     if (!item) {
       return res.status(404).json({ error: 'Collection item not found' });
     }
@@ -498,7 +706,8 @@ app.get('/api/wishlist', (req, res) => {
              COALESCE(a.Format, ra.Format) as Format,
              COALESCE(ar.Name, rar.Name) as ArtistName,
              r.CatalogNumber, r.ColorOrEdition, r.ReleaseYear,
-             l.Name as LabelName
+             l.Name as LabelName,
+             dc.CacheID
       FROM Wishlist w
       LEFT JOIN Albums a ON w.AlbumID = a.AlbumID
       LEFT JOIN Releases r ON w.ReleaseID = r.ReleaseID
@@ -506,6 +715,7 @@ app.get('/api/wishlist', (req, res) => {
       LEFT JOIN Artists ar ON a.ArtistID = ar.ArtistID
       LEFT JOIN Artists rar ON ra.ArtistID = rar.ArtistID
       LEFT JOIN Labels l ON r.LabelID = l.LabelID
+      LEFT JOIN DiscogsCache dc ON r.DiscogsID = dc.DiscogsID
       ORDER BY w.Priority, COALESCE(ar.Name, rar.Name)
     `).all();
     res.json(wishlist);
@@ -570,18 +780,19 @@ app.get('/api/search', (req, res) => {
     if (!query) {
       return res.status(400).json({ error: 'Search query required' });
     }
-    
+
     const searchTerm = `%${query}%`;
     const results = db.prepare(`
-      SELECT DISTINCT c.*, r.CatalogNumber, a.Title as AlbumTitle, ar.Name as ArtistName
+      SELECT DISTINCT c.*, r.CatalogNumber, a.Title as AlbumTitle, ar.Name as ArtistName, dc.CacheID
       FROM Collection c
       JOIN Releases r ON c.ReleaseID = r.ReleaseID
       JOIN Albums a ON r.AlbumID = a.AlbumID
       JOIN Artists ar ON a.ArtistID = ar.ArtistID
+      LEFT JOIN DiscogsCache dc ON r.DiscogsID = dc.DiscogsID
       WHERE ar.Name LIKE ? OR a.Title LIKE ? OR r.CatalogNumber LIKE ?
       ORDER BY ar.Name, a.Title
     `).all(searchTerm, searchTerm, searchTerm);
-    
+
     res.json(results);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -612,7 +823,7 @@ app.get('/api/stats', (req, res) => {
 app.get('/api/discogs/search', async (req, res) => {
   try {
     const { q, type = 'release' } = req.query;
-    
+
     if (!q) {
       return res.status(400).json({ error: 'Search query required' });
     }
@@ -656,7 +867,7 @@ app.get('/api/discogs/search', async (req, res) => {
 
   } catch (error) {
     console.error('Discogs API error:', error.message);
-    
+
     if (error.response) {
       // Discogs API returned an error
       if (error.response.status === 429) {
@@ -668,6 +879,78 @@ app.get('/api/discogs/search', async (req, res) => {
     } else {
       return res.status(500).json({ error: 'Failed to search Discogs' });
     }
+  }
+});
+
+// Cache Management: Manually populate cache
+app.post('/api/cache/populate', async (req, res) => {
+  try {
+    const releases = db.prepare('SELECT ReleaseID FROM Releases').all();
+    
+    releases.forEach(rel => {
+      cacheQueue.push(rel.ReleaseID);
+    });
+
+    // Start processing in background
+    processCacheQueue();
+
+    res.json({ 
+      message: `Cache population started for ${releases.length} releases`,
+      queued: releases.length 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cache Management: Clear all cache
+app.delete('/api/cache/clear', (req, res) => {
+  try {
+    const result = db.prepare('DELETE FROM DiscogsCache').run();
+    res.json({ 
+      message: 'Cache cleared',
+      deletedCount: result.changes 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cache Management: Get cache status
+app.get('/api/cache/status', (req, res) => {
+  try {
+    const totalReleases = db.prepare('SELECT COUNT(*) as count FROM Releases').get().count;
+    const cachedCount = db.prepare(`
+      SELECT COUNT(DISTINCT r.ReleaseID) as count 
+      FROM Releases r
+      JOIN DiscogsCache dc ON r.DiscogsID = dc.DiscogsID
+      WHERE r.DiscogsID IS NOT NULL
+    `).get().count;
+    
+    res.json({
+      totalReleases,
+      cachedReleases: cachedCount,
+      uncachedReleases: totalReleases - cachedCount,
+      queueLength: cacheQueue.length,
+      isProcessing: isProcessingQueue
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get cached image by CacheID
+app.get('/api/images/:cacheId', (req, res) => {
+  try {
+    const cacheId = req.params.cacheId;
+    const cached = db.prepare('SELECT ImageBlob FROM DiscogsCache WHERE CacheID = ?').get(cacheId);
+    if (!cached || !cached.ImageBlob) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    res.set('Content-Type', 'image/jpeg'); // Assuming JPEG, adjust if needed
+    res.send(cached.ImageBlob);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -698,10 +981,43 @@ app.listen(PORT, () => {
   console.log(`  GET    /api/search?query=...`);
   console.log(`  GET    /api/discogs/search?q=...`);
   console.log(`  GET    /api/stats`);
+  console.log(`  POST   /api/cache/populate`);
+  console.log(`  GET    /api/cache/status`);
+  console.log(`  DELETE /api/cache/clear`);
+  
+  // Startup cache check - populate missing cache entries after 5 seconds
+  setTimeout(() => {
+    try {
+      console.log('\n🔍 Checking for missing cache entries...');
+      const releases = db.prepare('SELECT ReleaseID, DiscogsID FROM Releases').all();
+      
+      let queuedCount = 0;
+      for (const rel of releases) {
+        if (rel.DiscogsID) {
+          const cached = db.prepare('SELECT CacheID FROM DiscogsCache WHERE DiscogsID = ?').get(rel.DiscogsID);
+          if (!cached) {
+            cacheQueue.push(rel.ReleaseID);
+            queuedCount++;
+          }
+        } else {
+          cacheQueue.push(rel.ReleaseID);
+          queuedCount++;
+        }
+      }
+      
+      if (queuedCount > 0) {
+        console.log(`📦 Found ${queuedCount} releases needing cache. Starting...`);
+        processCacheQueue();
+      } else {
+        console.log('✅ All releases cached.');
+      }
+    } catch (err) {
+      console.error('Error during cache check:', err.message);
+    }
+  }, 5000);
 });
 
 // Graceful shutdown
-/*
 process.on('SIGINT', () => {
   db.close();
   console.log('\n👋 Database closed. Server shutting down...');
@@ -713,4 +1029,3 @@ process.on('SIGTERM', () => {
   console.log('\n👋 Database closed. Server shutting down...');
   process.exit(0);
 });
-*/

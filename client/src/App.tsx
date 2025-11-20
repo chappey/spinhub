@@ -12,6 +12,7 @@ import { useCollectionData } from '@/hooks/useCollectionData';
 import { CollectionItem, WishlistItem } from '@/types';
 import { Toaster } from '@/components/ui/toaster';
 import { Statistics } from '@/components/features/Statistics';
+import { Settings } from '@/components/features/Settings';
 
 function App() {
     const [currentPage, setCurrentPage] = useState('dashboard');
@@ -168,12 +169,14 @@ function App() {
                         onRefresh={refreshData}
                         onMoveToCollection={handleMoveToCollection}
                     />
-                ) : (
+                ) : currentPage === 'stats' ? (
                     <Statistics
                         stats={stats}
                         collection={collection}
                         loading={loading}
                     />
+                ) : (
+                    <Settings />
                 )}
             </Layout>
 

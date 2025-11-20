@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Home, Library, Heart, BarChart3 } from 'lucide-react';
+import { ChevronLeft, Home, Library, Heart, BarChart3, Settings } from 'lucide-react';
 
 interface SidebarProps {
     collapsed: boolean;
@@ -14,6 +14,7 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, setCurrentPage }
         { id: 'collection', label: 'My Collection', icon: Library },
         { id: 'wishlist', label: 'Wishlist', icon: Heart },
         { id: 'stats', label: 'Statistics', icon: BarChart3 },
+        { id: 'settings', label: 'Settings', icon: Settings },
     ];
 
     return (

@@ -57,6 +57,7 @@ CREATE TABLE Releases (
     ReleaseID INTEGER PRIMARY KEY AUTOINCREMENT,
     AlbumID INTEGER NOT NULL,
     LabelID INTEGER,
+    DiscogsID INTEGER,
     CatalogNumber TEXT,
     CountryOfRelease TEXT,
     ReleaseYear INTEGER CHECK (ReleaseYear >= 1850 AND ReleaseYear <= 2100),
@@ -129,3 +130,19 @@ CREATE TABLE Wishlist (
 
 CREATE INDEX idx_wishlist_album ON Wishlist(AlbumID);
 CREATE INDEX idx_wishlist_release ON Wishlist(ReleaseID);
+
+-- ============================================================
+-- DISCOGS CACHE TABLE
+-- ============================================================
+CREATE TABLE DiscogsCache (
+    CacheID INTEGER PRIMARY KEY AUTOINCREMENT,
+    DiscogsID INTEGER,
+    QueryType TEXT,
+    Data TEXT,
+    ImageBlob BLOB,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ExpiresAt DATETIME
+);
+
+CREATE INDEX idx_discogs_cache_id ON DiscogsCache(DiscogsID);
+CREATE INDEX idx_discogs_cache_type ON DiscogsCache(QueryType);
