@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Search, Command, Plus, Sun, Moon } from 'lucide-react';
+import { Search, Command, Plus, Sun, Moon, Menu } from 'lucide-react';
 import { Kbd } from '@/components/ui/kbd';
 
 interface HeaderProps {
@@ -8,9 +8,10 @@ interface HeaderProps {
     onAddClick: () => void;
     darkMode: boolean;
     toggleDarkMode: () => void;
+    onMobileMenuClick: () => void;
 }
 
-export function Header({ currentPage, onSearchClick, onAddClick, darkMode, toggleDarkMode }: HeaderProps) {
+export function Header({ currentPage, onSearchClick, onAddClick, darkMode, toggleDarkMode, onMobileMenuClick }: HeaderProps) {
     const getTitle = () => {
         switch (currentPage) {
             case 'dashboard': return 'Dashboard';
@@ -26,6 +27,9 @@ export function Header({ currentPage, onSearchClick, onAddClick, darkMode, toggl
             <div className="container mx-auto px-4 py-4">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
+                        <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMobileMenuClick}>
+                            <Menu className="h-5 w-5" />
+                        </Button>
                         <div className="w-10 h-10 flex items-center justify-center lg:hidden">
                             <img src="/spin.svg" alt="SpinHub Logo" className="w-8 h-8" />
                         </div>

@@ -1,6 +1,7 @@
 import { ReactNode, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export function Layout({
     toggleDarkMode
 }: LayoutProps) {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -40,6 +42,21 @@ export function Layout({
                         />
                     )}
                 </div>
+
+                {/* Mobile Sidebar (Sheet) */}
+                <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                    <SheetContent side="left" className="p-0 w-[300px]">
+                        <Sidebar
+                            collapsed={false}
+                            setCollapsed={() => { }} // No collapse in mobile
+                            currentPage={currentPage}
+                            setCurrentPage={(page) => {
+                                setCurrentPage(page);
+                                setMobileOpen(false);
+                            }}
+                        />
+                    </SheetContent>
+                </Sheet>
 
                 {/* Collapsed Sidebar Toggle */}
                 {sidebarCollapsed && (
@@ -63,8 +80,9 @@ export function Layout({
                         onAddClick={onAddClick}
                         darkMode={darkMode}
                         toggleDarkMode={toggleDarkMode}
+                        onMobileMenuClick={() => setMobileOpen(true)}
                     />
-                    <main className="container mx-auto p-6">
+                    <main className="container mx-auto p-4 lg:p-6">
                         {children}
                     </main>
                 </div>

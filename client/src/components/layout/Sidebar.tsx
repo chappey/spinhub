@@ -32,7 +32,7 @@ export function Sidebar({ collapsed, setCollapsed, currentPage, setCurrentPage }
                             variant="ghost"
                             size="sm"
                             onClick={() => setCollapsed(true)}
-                            className="h-8 w-8 p-0 hover:bg-accent"
+                            className="h-8 w-8 p-0 hover:bg-accent hidden lg:flex"
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
