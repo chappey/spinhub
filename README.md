@@ -15,6 +15,24 @@ npm run dev               # runs both API server and Vite dev server
 npm run server            # starts the Express API alone
 ```
 
+## ⚙️ Configuration
+
+To enable Discogs integration (fetching album art and metadata), you need to configure your API keys.
+
+1. Create a `.env` file in the root directory:
+   ```env
+   PORT=3000
+   DISCOGS_KEY=your_discogs_consumer_key
+   DISCOGS_SECRET=your_discogs_consumer_secret
+   DISCOGS_USER_AGENT=SpinHub/1.0
+   ```
+
+2. **Get your Discogs Keys:**
+   - Go to [Discogs Developer Settings](https://www.discogs.com/settings/developers)
+   - Click "Create an Application"
+   - Copy the **Consumer Key** and **Consumer Secret** into your `.env` file
+
+
 ## 📁 Project Structure
 
 ```
