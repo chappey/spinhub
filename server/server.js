@@ -110,10 +110,10 @@ async function downloadImage(url) {
 // Helper: Fetch release or master data from Discogs API
 async function fetchDiscogsRelease(discogsId, queryType = 'release') {
   try {
-    const endpoint = queryType === 'master' 
+    const endpoint = queryType === 'master'
       ? `https://api.discogs.com/masters/${discogsId}`
       : `https://api.discogs.com/releases/${discogsId}`;
-    
+
     const response = await axios.get(endpoint, {
       params: {
         key: process.env.DISCOGS_KEY,
@@ -124,7 +124,7 @@ async function fetchDiscogsRelease(discogsId, queryType = 'release') {
       },
       timeout: 10000
     });
-    
+
     return response.data;
   } catch (error) {
     console.error(`Failed to fetch Discogs ${queryType} ${discogsId}:`, error.message);
@@ -136,7 +136,7 @@ async function fetchDiscogsRelease(discogsId, queryType = 'release') {
 async function searchDiscogsForAlbum(albumTitle, artistName) {
   try {
     const query = artistName ? `${artistName} ${albumTitle}` : albumTitle;
-    
+
     const response = await axios.get('https://api.discogs.com/database/search', {
       params: {
         q: query,
@@ -158,7 +158,7 @@ async function searchDiscogsForAlbum(albumTitle, artistName) {
         type: response.data.results[0].type || 'release'
       };
     }
-    
+
     return null;
   } catch (error) {
     console.error(`Failed to search Discogs for "${albumTitle}":`, error.message);
@@ -190,11 +190,11 @@ async function populateCacheForRelease(releaseId) {
     if (!discogsId) {
       console.log(`No DiscogsID for "${release.AlbumTitle}", searching...`);
       const searchResult = await searchDiscogsForAlbum(release.AlbumTitle, release.ArtistName);
-      
+
       if (searchResult) {
         discogsId = searchResult.id;
         queryType = searchResult.type;
-        
+
         // Update the Releases table with found DiscogsID
         db.prepare('UPDATE Releases SET DiscogsID = ? WHERE ReleaseID = ?')
           .run(discogsId, releaseId);
@@ -208,7 +208,7 @@ async function populateCacheForRelease(releaseId) {
     // Check if already cached
     const existing = db.prepare('SELECT CacheID FROM DiscogsCache WHERE DiscogsID = ? AND QueryType = ?')
       .get(discogsId, queryType);
-    
+
     if (existing) {
       console.log(`Cache already exists for DiscogsID ${discogsId}`);
       return true;
@@ -217,7 +217,7 @@ async function populateCacheForRelease(releaseId) {
     // Fetch data from Discogs
     console.log(`Fetching ${queryType} ${discogsId}...`);
     const discogsData = await fetchDiscogsRelease(discogsId, queryType);
-    
+
     if (!discogsData) {
       return false;
     }
@@ -225,7 +225,7 @@ async function populateCacheForRelease(releaseId) {
     // Download primary image
     let imageBlob = null;
     const imageUrl = release.ThumbURL || discogsData.images?.[0]?.uri || discogsData.thumb;
-    
+
     if (imageUrl) {
       console.log(`Downloading image for ${discogsId}...`);
       imageBlob = await downloadImage(imageUrl);
@@ -263,7 +263,7 @@ async function processCacheQueue() {
   while (cacheQueue.length > 0) {
     const releaseId = cacheQueue.shift();
     await populateCacheForRelease(releaseId);
-    
+
     // Rate limiting: wait 1 second between requests
     if (cacheQueue.length > 0) {
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -556,12 +556,12 @@ app.post('/api/releases', (req, res) => {
     );
     const result = stmt.run(AlbumID, LabelID, CatalogNumber, CountryOfRelease, ReleaseYear, AlternateTitle, FormatVariant, ColorOrEdition, Notes, DiscogsID, ThumbURL);
     const releaseId = result.lastInsertRowid;
-    
+
     // If DiscogsID provided, populate cache immediately
     if (DiscogsID) {
       populateCacheForRelease(releaseId);
     }
-    
+
     res.status(201).json({ ReleaseID: releaseId });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -886,7 +886,7 @@ app.get('/api/discogs/search', async (req, res) => {
 app.post('/api/cache/populate', async (req, res) => {
   try {
     const releases = db.prepare('SELECT ReleaseID FROM Releases').all();
-    
+
     releases.forEach(rel => {
       cacheQueue.push(rel.ReleaseID);
     });
@@ -894,9 +894,9 @@ app.post('/api/cache/populate', async (req, res) => {
     // Start processing in background
     processCacheQueue();
 
-    res.json({ 
+    res.json({
       message: `Cache population started for ${releases.length} releases`,
-      queued: releases.length 
+      queued: releases.length
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -907,9 +907,9 @@ app.post('/api/cache/populate', async (req, res) => {
 app.delete('/api/cache/clear', (req, res) => {
   try {
     const result = db.prepare('DELETE FROM DiscogsCache').run();
-    res.json({ 
+    res.json({
       message: 'Cache cleared',
-      deletedCount: result.changes 
+      deletedCount: result.changes
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -926,7 +926,7 @@ app.get('/api/cache/status', (req, res) => {
       JOIN DiscogsCache dc ON r.DiscogsID = dc.DiscogsID
       WHERE r.DiscogsID IS NOT NULL
     `).get().count;
-    
+
     res.json({
       totalReleases,
       cachedReleases: cachedCount,
@@ -951,6 +951,36 @@ app.get('/api/images/:cacheId', (req, res) => {
     res.send(cached.ImageBlob);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Proxy Discogs image
+app.get('/api/proxy-image', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    // Basic validation to ensure we're only proxying Discogs images
+    if (!url.includes('discogs.com') && !url.includes('discogs-images')) {
+      return res.status(400).json({ error: 'Invalid URL domain' });
+    }
+
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      headers: {
+        'User-Agent': process.env.DISCOGS_USER_AGENT || 'SpinHub/1.0'
+      },
+      timeout: 10000
+    });
+
+    res.set('Content-Type', response.headers['content-type']);
+    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    res.send(response.data);
+  } catch (error) {
+    console.error('Proxy error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch image' });
   }
 });
 
@@ -984,13 +1014,13 @@ app.listen(PORT, () => {
   console.log(`  POST   /api/cache/populate`);
   console.log(`  GET    /api/cache/status`);
   console.log(`  DELETE /api/cache/clear`);
-  
+
   // Startup cache check - populate missing cache entries after 5 seconds
   setTimeout(() => {
     try {
       console.log('\n🔍 Checking for missing cache entries...');
       const releases = db.prepare('SELECT ReleaseID, DiscogsID FROM Releases').all();
-      
+
       let queuedCount = 0;
       for (const rel of releases) {
         if (rel.DiscogsID) {
@@ -1004,7 +1034,7 @@ app.listen(PORT, () => {
           queuedCount++;
         }
       }
-      
+
       if (queuedCount > 0) {
         console.log(`📦 Found ${queuedCount} releases needing cache. Starting...`);
         processCacheQueue();

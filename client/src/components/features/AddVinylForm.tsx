@@ -216,7 +216,11 @@ export function AddVinylForm({ artists, labels, onSuccess, onCancel, initialData
                                             onClick={() => handleDiscogsSelect(result)}
                                         >
                                             {result.thumb ? (
-                                                <img src={result.thumb} alt={result.title} className="w-12 h-12 object-cover rounded" />
+                                                <img
+                                                    src={`/api/proxy-image?url=${encodeURIComponent(result.thumb)}`}
+                                                    alt={result.title}
+                                                    className="w-12 h-12 object-cover rounded"
+                                                />
                                             ) : (
                                                 <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
                                                     <Disc className="w-6 h-6 text-muted-foreground" />
